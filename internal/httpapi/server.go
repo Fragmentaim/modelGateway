@@ -392,10 +392,10 @@ func (s *Server) submit(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	var extra []byte
-	err := inputschema.Validate(definition.InputSchema, input.Input, c.GetBool(experimentalCredential))
+	fields, err := inputschema.Validate(definition.InputSchema, input.Input, c.GetBool(experimentalCredential))
 	if err == nil && protocol.MediaProtocol(kind) {
 		var images []protocol.InputImage
-		_, images, err = protocol.DecodeInput(input.Input)
+		images, err = protocol.DecodeImageFields(fields)
 		if err == nil {
 			extra, err = protocol.InputMediaExtra(protocol.InputMedia(kind, images))
 		}
@@ -410,7 +410,7 @@ func (s *Server) submit(ctx context.Context, c *app.RequestContext) {
 	}
 	if !protocol.MediaProtocol(kind) {
 		<-s.uploads
-		s.submitSynchronousInput(ctx, c, model, kind, input.Input, input.Metadata)
+		s.submitSynchronousInput(ctx, c, model, kind, input.Input, fields, input.Metadata)
 		return
 	}
 	raw, err = json.Marshal(input)

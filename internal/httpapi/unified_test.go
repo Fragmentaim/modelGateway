@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/wgdl666/modelGateway/internal/inputschema"
 	"github.com/wgdl666/modelGateway/internal/protocol"
 )
 
@@ -17,7 +18,15 @@ func TestUnifiedVisionEncoding(t *testing.T) {
 				continue
 			}
 			raw := json.RawMessage(`{"file":"aW1hZ2U=","output":"b64","method":"fallback","person_method":"person-algorithm","subject_method":"subject-algorithm"}`)
-			body, contentType, err := unifiedVisionBody(tc.kind, route, raw)
+			schema, err := inputschema.Seed(tc.kind)
+			if err != nil {
+				t.Fatal(err)
+			}
+			fields, err := inputschema.Validate(schema, raw, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, contentType, err := unifiedVisionBody(tc.kind, route, raw, fields)
 			if err != nil {
 				t.Fatal(err)
 			}

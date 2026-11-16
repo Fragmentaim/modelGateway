@@ -3,7 +3,10 @@ package inputschema
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"testing"
+
+	"github.com/santhosh-tekuri/jsonschema/v6"
 )
 
 func TestDecisionSchemaOwnsBusinessRules(t *testing.T) {
@@ -38,9 +41,54 @@ func TestDecisionSchemaOwnsBusinessRules(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			input := json.RawMessage(fmt.Sprintf(`{"messages":[%s],"model_traits":%s}`, tc.messages, tc.traits))
-			if err := Validate(schema, input, false); (err == nil) != tc.valid {
+			if _, err := Validate(schema, input, false); (err == nil) != tc.valid {
 				t.Fatalf("valid=%v: %v", tc.valid, err)
 			}
 		})
+	}
+}
+
+type countedImageRegexp struct {
+	*regexp.Regexp
+	visits *int
+}
+
+func (r countedImageRegexp) MatchString(value string) bool {
+	if r.String() == "^data:image/[^,]*;base64," {
+		*r.visits++
+	}
+	return r.Regexp.MatchString(value)
+}
+
+func TestDecisionValidatesImageURLOnce(t *testing.T) {
+	raw, err := Seed("decision")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var document any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		t.Fatal(err)
+	}
+	visits := 0
+	c := jsonschema.NewCompiler()
+	c.UseRegexpEngine(func(pattern string) (jsonschema.Regexp, error) {
+		r, err := regexp.Compile(pattern)
+		return countedImageRegexp{Regexp: r, visits: &visits}, err
+	})
+	const resource = "https://test.invalid/decision.json"
+	if err := c.AddResource(resource, document); err != nil {
+		t.Fatal(err)
+	}
+	schema, err := c.Compile(resource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var input any
+	if err := json.Unmarshal([]byte(`{"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBORw0KGgo="}}]}],"model_traits":{"task":"image_type"}}`), &input); err != nil {
+		t.Fatal(err)
+	}
+	visits = 0
+	if err := schema.Validate(input); err != nil || visits != 1 {
+		t.Fatalf("image URL validations=%d err=%v", visits, err)
 	}
 }

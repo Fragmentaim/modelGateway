@@ -33,7 +33,10 @@ func instanceClearable(row *ent.ModelInstance, healthy bool) bool {
 
 // 排空实例退出探活集合，已派发任务仍按账本中的地址回查。
 func (s *Store) ProbeInstances(ctx context.Context) ([]*ent.ModelInstance, error) {
-	return s.db.ModelInstance.Query().Where(modelinstance.DeletedAtIsNil(), modelinstance.DrainingEQ(false)).All(ctx)
+	// 探活不使用模型 Schema，显式投影避免后台循环反复读取大 JSONB。
+	return s.db.ModelInstance.Query().Where(modelinstance.DeletedAtIsNil(), modelinstance.DrainingEQ(false)).
+		Select(modelinstance.FieldID, modelinstance.FieldModelKey, modelinstance.FieldProtocol,
+			modelinstance.FieldEndpoint, modelinstance.FieldHealthURL, modelinstance.FieldGpuDevices).All(ctx)
 }
 
 func (s *Store) Register(ctx context.Context, spec protocol.Instance, reportedArtifact string) error {

@@ -15,14 +15,9 @@ import (
 )
 
 // 统一入口只做契约校验与编码分派，受理、占槽及终态仍由原执行路径处理。
-func (s *Server) submitSynchronousInput(ctx context.Context, c *app.RequestContext, model, kind string, raw json.RawMessage, metadata protocol.Metadata) {
+func (s *Server) submitSynchronousInput(ctx context.Context, c *app.RequestContext, model, kind string, raw json.RawMessage, fields map[string]any, metadata protocol.Metadata) {
 	cfg := requestConfig(ctx)
 	if kind == protocol.ChatProtocol || kind == protocol.DecisionProtocol {
-		var fields map[string]json.RawMessage
-		if err := json.Unmarshal(raw, &fields); err != nil {
-			writeError(c, 400, "invalid_input", err.Error(), "")
-			return
-		}
 		if kind == protocol.DecisionProtocol {
 			if cfg.DecisionAddr == "" {
 				writeError(c, 503, "model_unavailable", "decision execution is not configured", "")
@@ -41,7 +36,7 @@ func (s *Server) submitSynchronousInput(ctx context.Context, c *app.RequestConte
 			writeError(c, 503, "model_unavailable", "chat execution is not configured", "")
 			return
 		}
-		fields["model"], _ = json.Marshal(model)
+		fields["model"] = model
 		delete(fields, "model_traits")
 		body, err := json.Marshal(fields)
 		if err != nil {
@@ -59,7 +54,7 @@ func (s *Server) submitSynchronousInput(ctx context.Context, c *app.RequestConte
 		if route.protocol != kind {
 			continue
 		}
-		body, contentType, err := unifiedVisionBody(kind, route, raw)
+		body, contentType, err := unifiedVisionBody(kind, route, raw, fields)
 		if err != nil {
 			writeError(c, 400, "invalid_input", err.Error(), "")
 			return
@@ -76,23 +71,19 @@ func (s *Server) submitSynchronousInput(ctx context.Context, c *app.RequestConte
 	writeError(c, 400, "invalid_protocol", "model has no synchronous executor", "")
 }
 
-func unifiedVisionBody(kind string, route visionRoute, raw json.RawMessage) ([]byte, string, error) {
+func unifiedVisionBody(kind string, route visionRoute, raw json.RawMessage, fields map[string]any) ([]byte, string, error) {
 	if route.mediaType == "application/json" {
 		return raw, route.mediaType, nil
-	}
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &fields); err != nil {
-		return nil, "", err
 	}
 	if kind == protocol.SegmentPersonProtocol || kind == protocol.SegmentSubjectProtocol {
 		method := "subject_method"
 		if kind == protocol.SegmentPersonProtocol {
 			method = "person_method"
 		}
-		if value := fields[method]; len(value) > 0 {
+		if value, exists := fields[method]; exists {
 			fields["method"] = value
 			if kind == protocol.SegmentPersonProtocol {
-				fields["preprocess"] = json.RawMessage(`"false"`)
+				fields["preprocess"] = "false"
 			}
 		}
 		delete(fields, "person_method")
@@ -101,9 +92,13 @@ func unifiedVisionBody(kind string, route visionRoute, raw json.RawMessage) ([]b
 	var body bytes.Buffer
 	out := multipart.NewWriter(&body)
 	for name, value := range fields {
-		var text string
-		if json.Unmarshal(value, &text) != nil {
-			text = string(value)
+		text, isString := value.(string)
+		if !isString {
+			encoded, err := json.Marshal(value)
+			if err != nil {
+				return nil, "", err
+			}
+			text = string(encoded)
 		}
 		if name == "file" || name == "file_a" || name == "file_b" {
 			data, err := base64.StdEncoding.DecodeString(text)

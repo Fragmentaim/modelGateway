@@ -175,10 +175,15 @@ func (s *Store) Claim(ctx context.Context, cfg config.Config, id string) (*ent.R
 			return deferPublication(ctx, tx, next)
 		}
 		// 同键不同业务的旧登记在迁移时已归档，派发直接按请求的模型键选实例。
+		// 领取只使用健康、容量和执行身份，不读取模型 Schema。
 		instances, err := tx.ModelInstance.Query().Where(
 			modelinstance.DeletedAtIsNil(), modelinstance.ModelKeyEQ(next.ModelKey),
 			modelinstance.ReadyEQ(true), modelinstance.DrainingEQ(false),
-		).Order(ent.Asc(modelinstance.FieldID)).All(ctx)
+		).Select(modelinstance.FieldID, modelinstance.FieldModelKey, modelinstance.FieldProtocol,
+			modelinstance.FieldEndpoint, modelinstance.FieldHealthURL, modelinstance.FieldArtifactDigest,
+			modelinstance.FieldResourceGroup, modelinstance.FieldCapacityUnits, modelinstance.FieldMachineID,
+			modelinstance.FieldGpuDevices, modelinstance.FieldReady, modelinstance.FieldHealthCheckedAt).
+			Order(ent.Asc(modelinstance.FieldID)).All(ctx)
 		if err != nil {
 			return err
 		}
@@ -231,7 +236,7 @@ func (s *Store) Claim(ctx context.Context, cfg config.Config, id string) (*ent.R
 				continue
 			}
 			// 与排空串行化，提交后请求身份和物理槽位才对其他副本可见。
-			if _, err := tx.ModelInstance.Query().Where(modelinstance.IDEQ(i.ID)).ForUpdate().Only(ctx); err != nil {
+			if _, err := tx.ModelInstance.Query().Where(modelinstance.IDEQ(i.ID)).Select(modelinstance.FieldID).ForUpdate().Only(ctx); err != nil {
 				return err
 			}
 			nextPoll := next.DeadlineAt.Add(2 * time.Second)

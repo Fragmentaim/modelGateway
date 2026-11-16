@@ -20,17 +20,18 @@ func TestDecisionChatPreservesPresetAndInlineImage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	validate := func(fields map[string]json.RawMessage) error {
+	validate := func(fields map[string]json.RawMessage) (map[string]any, error) {
 		raw, err := json.Marshal(fields)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		return inputschema.Validate(schema, raw, false)
 	}
-	if err := validate(fields); err != nil {
+	parsed, err := validate(fields)
+	if err != nil {
 		t.Fatal(err)
 	}
-	body, contentType, stream, err := prepareDecisionChat(fields)
+	body, contentType, stream, err := prepareDecisionChat(parsed)
 	if err != nil || !stream {
 		t.Fatalf("prepare Decision: %v", err)
 	}
@@ -58,13 +59,40 @@ func TestDecisionChatPreservesPresetAndInlineImage(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			fields["messages"], fields["model_traits"] = json.RawMessage(tc.messages), json.RawMessage(tc.traits)
-			err := validate(fields)
+			parsed, err := validate(fields)
 			if err == nil {
-				_, _, _, err = prepareDecisionChat(fields)
+				_, _, _, err = prepareDecisionChat(parsed)
 			}
 			if err == nil {
 				t.Fatal("invalid Decision input was accepted")
 			}
 		})
+	}
+}
+
+func TestDecisionChatPreservesNullMessageSpacing(t *testing.T) {
+	schema, err := inputschema.Seed("decision")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields, err := inputschema.Validate(schema, json.RawMessage(`{"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBORw0KGgo="}}]},{"role":"user","content":"a"},{"role":"user","content":null},{"role":"user","content":"b"}],"model_traits":{"options":["shirt","pants"]}}`), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, contentType, _, err := prepareDecisionChat(fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, params, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		t.Fatal(err)
+	}
+	form, err := multipart.NewReader(strings.NewReader(string(body)), params["boundary"]).ReadForm(1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer form.RemoveAll()
+	if form.Value["prompt"][0] != "a\n\nb" || form.Value["options"][0] != `["shirt","pants"]` || len(form.Value["task"]) != 0 {
+		t.Fatalf("custom question changed: %+v", form.Value)
 	}
 }

@@ -96,11 +96,11 @@ func TestMigrationSeedsDecisionBusinessRules(t *testing.T) {
 	}
 	const imageMessage = `{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBORw0KGgo="}}]}`
 	valid := json.RawMessage(`{"messages":[` + imageMessage + `,{"role":"user","content":"\u00a0\u3000"}],"model_traits":{"task":"image_type"}}`)
-	if err := inputschema.Validate(definition.InputSchema, valid, false); err != nil {
+	if _, err := inputschema.Validate(definition.InputSchema, valid, false); err != nil {
 		t.Fatalf("migrated preset contract: %v", err)
 	}
 	invalid := json.RawMessage(`{"messages":[` + imageMessage + `,{"role":"user","content":"classify"}],"model_traits":{"task":"image_type"}}`)
-	if err := inputschema.Validate(definition.InputSchema, invalid, false); err == nil {
+	if _, err := inputschema.Validate(definition.InputSchema, invalid, false); err == nil {
 		t.Fatal("migration did not enforce task/prompt exclusion")
 	}
 }

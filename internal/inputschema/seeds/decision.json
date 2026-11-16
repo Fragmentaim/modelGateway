@@ -40,7 +40,7 @@
                   ]
                 },
                 "contains": {
-                  "$ref": "#/$defs/image_part"
+                  "$ref": "#/$defs/image_tag"
                 },
                 "minContains": 0,
                 "maxContains": 1
@@ -190,7 +190,7 @@
         "content": {
           "type": "array",
           "contains": {
-            "$ref": "#/$defs/image_part"
+            "$ref": "#/$defs/image_tag"
           }
         }
       }
@@ -229,6 +229,17 @@
               }
             }
           ]
+        }
+      }
+    },
+    "image_tag": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "image_url"
         }
       }
     }

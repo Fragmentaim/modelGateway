@@ -21,7 +21,7 @@ func validateInput(kind string, input json.RawMessage, experimental bool) ([]Inp
 	if err != nil {
 		return nil, err
 	}
-	if err := inputschema.Validate(raw, input, experimental); err != nil {
+	if _, err := inputschema.Validate(raw, input, experimental); err != nil {
 		return nil, err
 	}
 	_, images, err := DecodeInput(input)

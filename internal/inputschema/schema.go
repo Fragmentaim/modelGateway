@@ -6,7 +6,9 @@ import (
 	"crypto/sha256"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -92,18 +94,56 @@ func CheckDefinition(raw json.RawMessage) error {
 	return nil
 }
 
-func Validate(raw, input json.RawMessage, experimental bool) error {
+// Validate 返回已校验的对象，执行编码复用它，不再重新解析大图片 JSON。
+func Validate(raw, input json.RawMessage, experimental bool) (map[string]any, error) {
 	effective, err := Effective(raw, experimental)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	schema, err := Compile(effective)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	value, err := jsonschema.UnmarshalJSON(bytes.NewReader(input))
 	if err != nil {
+		return nil, err
+	}
+	fields, ok := value.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("input must be a JSON object")
+	}
+	if err := schema.Validate(fields); err != nil {
+		return nil, inputError(err)
+	}
+	return fields, nil
+}
+
+// Schema 错误只输出字段路径与规则，避免把完整图片值格式化进响应。
+func inputError(err error) error {
+	var validation *jsonschema.ValidationError
+	if !errors.As(err, &validation) {
 		return err
 	}
-	return schema.Validate(value)
+	var issues []string
+	escape := strings.NewReplacer("~", "~0", "/", "~1")
+	var visit func(*jsonschema.ValidationError)
+	visit = func(node *jsonschema.ValidationError) {
+		if len(node.Causes) > 0 {
+			for _, cause := range node.Causes {
+				visit(cause)
+			}
+			return
+		}
+		path := ""
+		for _, part := range node.InstanceLocation {
+			path += "/" + escape.Replace(part)
+		}
+		keyword := strings.Join(node.ErrorKind.KeywordPath(), "/")
+		if keyword == "" {
+			keyword = "schema"
+		}
+		issues = append(issues, fmt.Sprintf("%q: %s", path, keyword))
+	}
+	visit(validation)
+	return fmt.Errorf("input schema mismatch: %s", strings.Join(issues, "; "))
 }

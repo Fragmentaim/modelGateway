@@ -85,12 +85,16 @@ func TestDecisionUsesTextSubmissionWithoutProtocolLookup(t *testing.T) {
 		`{"model_traits":{"task":"image_type"},"messages":[{"role":"user","content":"classify"}]}`,
 		`{"model_traits":{"task":"image_type"},"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"https://private/image.png"}}]}]}`,
 		`{"model_traits":{"task":"image_type"},"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBORw0KGgo="}},{"type":"text","text":"classify"}]}]}`,
+		`{"model_traits":{"task":"image_type"},"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:application/octet-stream;base64,` + strings.Repeat("PRIVATE_IMAGE_DATA_", 1024) + `"}}]}]}`,
 	} {
 		resp := sendSynchronous(t, base, "/v1/gateway/requests/"+spec.ModelKey, "application/json", `{"input":`+input+`}`, uuid.NewString())
 		raw, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(raw), "invalid_input") {
 			t.Fatalf("Decision schema did not reject input: %d %s", resp.StatusCode, raw)
+		}
+		if strings.Contains(string(raw), "PRIVATE_IMAGE_DATA_") || len(raw) > 4096 {
+			t.Fatalf("schema error echoed input values: %d bytes", len(raw))
 		}
 	}
 	if count, err := db.Request.Query().Count(t.Context()); err != nil || count != 0 {
