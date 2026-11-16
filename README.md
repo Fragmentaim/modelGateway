@@ -14,6 +14,8 @@
 
 `model_instances.input_schema` 是 JSONB，保存完整 JSON Schema 2020-12。定义包含字段、类型、必填项、图片顺序和数量；运行时由 JSON Schema 库校验，再由已有适配器编码并派发。`protocol` 继续选择内部编码与执行方式，实例 `endpoint` 继续决定执行地址，调用方不选择内部路径。
 
+媒体 input 直接使用模型 Schema 的字段，例如 VTON 的 `images`/`prompt`、拆衣的 `garment_name`/`bbox`/`parse_labels`、体模的 `gender`。不再接受 `text`/`model_traits` 兼容信封；protobuf 转换由 ModelHub 完成。Decision Schema 约束恰好一张内联图片、消息内容类型、预设 task 与用户问题互斥，以及 options 仅供自定义问题使用；执行适配器只解码图片、识别真实格式并编码模型表单。
+
 同模型多个实例保留重复 schema。管理凭据调用 `PUT /v1/admin/models/{model_key}/schema`，请求 `{"input_schema":{...}}`，在一个事务里更新该模型全部登记；新副本继承已有定义，不按协议重置。首次登记可提交 input_schema，省略时使用协议种子。定义只允许文档内部 `$ref`，不加载远程或本机文件。
 
 **发布前先执行 [input_schema 迁移](deploy/migrations/model-input-schema.sql)**，回填已有 13 种协议的初始契约；已有自定义定义不会被覆盖。种子用于迁移和首次登记，运行时缺少定义返回 503。`x-category` 提供目录类别；`x-experimental-properties` 只对实验凭据展开，对外 schema 与当前凭据实际校验规则一致。

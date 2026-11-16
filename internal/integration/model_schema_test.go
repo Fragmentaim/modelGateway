@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/wgdl666/modelGateway/internal/inputschema"
 	"github.com/wgdl666/modelGateway/internal/protocol"
 )
 
@@ -67,6 +68,40 @@ func TestUnifiedChatUsesStoredSchemaAndPreservesResponse(t *testing.T) {
 	definition, err := ledger.ModelDefinition(t.Context(), spec.ModelKey)
 	if err != nil || !strings.Contains(string(definition.InputSchema), "reasoning_effort") {
 		t.Fatalf("stored schema: %+v %v", definition, err)
+	}
+}
+
+func TestMigrationSeedsDecisionBusinessRules(t *testing.T) {
+	ledger, _, db := stores(t)
+	spec := testInstance(protocol.DecisionModel, "http://127.0.0.1:19101", 1)
+	registerReady(t, ledger, spec)
+	if err := db.ModelInstance.UpdateOneID(spec.ID).ClearInputSchema().Exec(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	conn, err := pgx.Connect(t.Context(), os.Getenv("TEST_DATABASE_URL"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close(t.Context())
+	raw, err := os.ReadFile("../../deploy/migrations/model-input-schema.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(t.Context(), string(raw)); err != nil {
+		t.Fatal(err)
+	}
+	definition, err := ledger.ModelDefinition(t.Context(), spec.ModelKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const imageMessage = `{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBORw0KGgo="}}]}`
+	valid := json.RawMessage(`{"messages":[` + imageMessage + `,{"role":"user","content":"\u00a0\u3000"}],"model_traits":{"task":"image_type"}}`)
+	if err := inputschema.Validate(definition.InputSchema, valid, false); err != nil {
+		t.Fatalf("migrated preset contract: %v", err)
+	}
+	invalid := json.RawMessage(`{"messages":[` + imageMessage + `,{"role":"user","content":"classify"}],"model_traits":{"task":"image_type"}}`)
+	if err := inputschema.Validate(definition.InputSchema, invalid, false); err == nil {
+		t.Fatal("migration did not enforce task/prompt exclusion")
 	}
 }
 

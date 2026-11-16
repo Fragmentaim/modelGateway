@@ -77,3 +77,24 @@ func TestAdmissionRejectsUnknownAndMismatchedModelsBeforeQueue(t *testing.T) {
 		t.Fatalf("only accepted request may persist: count=%d err=%v", count, err)
 	}
 }
+
+func TestMediaAdmissionRejectsOldModelHubEnvelope(t *testing.T) {
+	ledger, _, db := stores(t)
+	spec := testInstance(protocol.OutfitModel, "http://127.0.0.1:8001", 1)
+	registerReady(t, ledger, spec)
+	runtime, err := config.NewRuntime(testConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := startHTTPServer(t, httpapi.New(ledger, runtime, nil))
+	resp := sendSynchronous(t, base, "/v1/gateway/requests/"+spec.ModelKey, "application/json",
+		`{"input":{"images":[{"mime_type":"image/png","data":"eA=="},{"mime_type":"image/png","data":"eA=="}],"text":"try on","model_traits":{}}}`, uuid.NewString())
+	raw, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(raw), "invalid_input") {
+		t.Fatalf("old envelope was not rejected: %d %s", resp.StatusCode, raw)
+	}
+	if count, err := db.Request.Query().Count(t.Context()); err != nil || count != 0 {
+		t.Fatalf("old envelope reached queue: count=%d err=%v", count, err)
+	}
+}

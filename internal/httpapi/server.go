@@ -392,13 +392,7 @@ func (s *Server) submit(ctx context.Context, c *app.RequestContext) {
 		return
 	}
 	var extra []byte
-	var err error
-	if protocol.MediaProtocol(kind) {
-		input.Input, err = protocol.NormalizeMediaInput(kind, input.Input)
-	}
-	if err == nil {
-		err = inputschema.Validate(definition.InputSchema, input.Input, c.GetBool(experimentalCredential))
-	}
+	err := inputschema.Validate(definition.InputSchema, input.Input, c.GetBool(experimentalCredential))
 	if err == nil && protocol.MediaProtocol(kind) {
 		var images []protocol.InputImage
 		_, images, err = protocol.DecodeInput(input.Input)
@@ -422,7 +416,7 @@ func (s *Server) submit(ctx context.Context, c *app.RequestContext) {
 	raw, err = json.Marshal(input)
 	if err != nil {
 		<-s.uploads
-		writeError(c, 400, "invalid_input", "could not encode normalized input", id)
+		writeError(c, 400, "invalid_input", "could not encode input", id)
 		return
 	}
 	task, err := s.store.Admit(ctx, store.Admission{

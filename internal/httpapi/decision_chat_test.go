@@ -7,12 +7,28 @@ import (
 	"mime/multipart"
 	"strings"
 	"testing"
+
+	"github.com/wgdl666/modelGateway/internal/inputschema"
 )
 
 func TestDecisionChatPreservesPresetAndInlineImage(t *testing.T) {
 	fields := map[string]json.RawMessage{
 		"messages":     json.RawMessage(`[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBORw0KGgo="}}]}]`),
 		"model_traits": json.RawMessage(`{"task":"image_type"}`), "stream": json.RawMessage(`true`),
+	}
+	schema, err := inputschema.Seed("decision")
+	if err != nil {
+		t.Fatal(err)
+	}
+	validate := func(fields map[string]json.RawMessage) error {
+		raw, err := json.Marshal(fields)
+		if err != nil {
+			return err
+		}
+		return inputschema.Validate(schema, raw, false)
+	}
+	if err := validate(fields); err != nil {
+		t.Fatal(err)
 	}
 	body, contentType, stream, err := prepareDecisionChat(fields)
 	if err != nil || !stream {
@@ -42,7 +58,11 @@ func TestDecisionChatPreservesPresetAndInlineImage(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			fields["messages"], fields["model_traits"] = json.RawMessage(tc.messages), json.RawMessage(tc.traits)
-			if _, _, _, err := prepareDecisionChat(fields); err == nil {
+			err := validate(fields)
+			if err == nil {
+				_, _, _, err = prepareDecisionChat(fields)
+			}
+			if err == nil {
 				t.Fatal("invalid Decision input was accepted")
 			}
 		})

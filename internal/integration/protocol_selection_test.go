@@ -81,6 +81,21 @@ func TestDecisionUsesTextSubmissionWithoutProtocolLookup(t *testing.T) {
 	spec.ModelKey = "registered-decision-v2"
 	spec.HealthURL = cfg.SynchronousHealthURL(spec.Protocol)
 	registerReady(t, ledger, spec)
+	for _, input := range []string{
+		`{"model_traits":{"task":"image_type"},"messages":[{"role":"user","content":"classify"}]}`,
+		`{"model_traits":{"task":"image_type"},"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"https://private/image.png"}}]}]}`,
+		`{"model_traits":{"task":"image_type"},"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBORw0KGgo="}},{"type":"text","text":"classify"}]}]}`,
+	} {
+		resp := sendSynchronous(t, base, "/v1/gateway/requests/"+spec.ModelKey, "application/json", `{"input":`+input+`}`, uuid.NewString())
+		raw, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(raw), "invalid_input") {
+			t.Fatalf("Decision schema did not reject input: %d %s", resp.StatusCode, raw)
+		}
+	}
+	if count, err := db.Request.Query().Count(t.Context()); err != nil || count != 0 {
+		t.Fatalf("invalid Decision input reached admission: count=%d err=%v", count, err)
+	}
 	for _, stream := range []bool{false, true} {
 		body, _ := json.Marshal(map[string]any{
 			"stream": stream, "model_traits": map[string]string{"task": "image_type"},

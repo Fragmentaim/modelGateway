@@ -15,16 +15,16 @@ import (
 
 const decisionChatStreamKey = "decision_chat_stream"
 
-// prepareDecisionChat 只转换已登记的 Decision 输入，保留原生预设任务/自定义问题互斥和内联图片边界。
+// prepareDecisionChat 编码已通过模型 Schema 的输入；消息类型、图片数量和 task/prompt 互斥由 Schema 约束。
 func prepareDecisionChat(fields map[string]json.RawMessage) ([]byte, string, bool, error) {
 	var messages []struct {
 		Role    string          `json:"role"`
 		Content json.RawMessage `json:"content"`
 	}
-	if json.Unmarshal(fields["messages"], &messages) != nil {
-		return nil, "", false, errors.New("Decision requires messages")
+	if err := json.Unmarshal(fields["messages"], &messages); err != nil {
+		return nil, "", false, err
 	}
-	var images []string
+	var imageURL string
 	var texts []string
 	for _, message := range messages {
 		var text string
@@ -41,8 +41,8 @@ func prepareDecisionChat(fields map[string]json.RawMessage) ([]byte, string, boo
 				URL string `json:"url"`
 			} `json:"image_url"`
 		}
-		if json.Unmarshal(message.Content, &parts) != nil {
-			return nil, "", false, errors.New("invalid Decision content")
+		if err := json.Unmarshal(message.Content, &parts); err != nil {
+			return nil, "", false, err
 		}
 		for _, part := range parts {
 			switch part.Type {
@@ -51,22 +51,14 @@ func prepareDecisionChat(fields map[string]json.RawMessage) ([]byte, string, boo
 					texts = append(texts, part.Text)
 				}
 			case "image_url":
-				images = append(images, part.ImageURL.URL)
-			default:
-				return nil, "", false, errors.New("unsupported Decision content")
+				imageURL = part.ImageURL.URL
 			}
 		}
 	}
-	if len(images) != 1 {
-		return nil, "", false, errors.New("Decision requires exactly one inline image")
-	}
-	prefix, encoded, ok := strings.Cut(images[0], ",")
-	if !ok || !strings.HasPrefix(prefix, "data:image/") || !strings.HasSuffix(prefix, ";base64") {
-		return nil, "", false, errors.New("Decision requires an inline image")
-	}
+	_, encoded, _ := strings.Cut(imageURL, ",")
 	image, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
-		return nil, "", false, errors.New("invalid Decision image")
+		return nil, "", false, err
 	}
 	// Decision 按扩展名读图片，必须从实际内容选择，不能信任调用方声明的 MIME。
 	extension := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}[http.DetectContentType(image)]
@@ -77,16 +69,17 @@ func prepareDecisionChat(fields map[string]json.RawMessage) ([]byte, string, boo
 		Task    string   `json:"task"`
 		Options []string `json:"options"`
 	}
-	if raw := fields["model_traits"]; len(raw) > 0 && json.Unmarshal(raw, &traits) != nil {
-		return nil, "", false, errors.New("invalid Decision model_traits")
+	if raw := fields["model_traits"]; len(raw) > 0 {
+		if err := json.Unmarshal(raw, &traits); err != nil {
+			return nil, "", false, err
+		}
 	}
 	task, prompt := strings.TrimSpace(traits.Task), strings.TrimSpace(strings.Join(texts, "\n"))
-	if (task == "") == (prompt == "") || (task != "" && len(traits.Options) > 0) {
-		return nil, "", false, errors.New("Decision requires a preset task or a custom prompt with optional options")
-	}
 	var stream bool
-	if raw := fields["stream"]; len(raw) > 0 && json.Unmarshal(raw, &stream) != nil {
-		return nil, "", false, errors.New("stream must be a boolean")
+	if raw := fields["stream"]; len(raw) > 0 {
+		if err := json.Unmarshal(raw, &stream); err != nil {
+			return nil, "", false, err
+		}
 	}
 	var body bytes.Buffer
 	out := multipart.NewWriter(&body)
