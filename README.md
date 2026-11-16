@@ -18,7 +18,7 @@
 
 **发布前先执行 [input_schema 迁移](deploy/migrations/model-input-schema.sql)**，回填已有 13 种协议的初始契约；已有自定义定义不会被覆盖。种子用于迁移和首次登记，运行时缺少定义返回 503。`x-category` 提供目录类别；`x-experimental-properties` 只对实验凭据展开，对外 schema 与当前凭据实际校验规则一致。
 
-对话 input 使用 OpenAI-compatible JSON（模型由路径指定），响应仍是原生 JSON/SSE；视觉 input 使用 JSON 和 Base64 内联图片，由 Gateway 编码成上游 multipart/JSON，响应保持原生 JSON/图片。OpenAI-compatible 种子保留扩展字段，具体模型的参数支持范围可由管理员在模型定义中收紧；schema 通过不替代上游模型的语义校验。媒体生成仍使用下面的任务结果格式。旧 `/v1/chat/completions`、`/v1/vision/...` 和决策入口保留，供已有调用方迁移。
+对话 input 使用 OpenAI-compatible JSON（模型由路径指定），响应仍是原生 JSON/SSE；视觉 input 使用 JSON 和 Base64 内联图片，由 Gateway 编码成上游 multipart/JSON，响应保持原生 JSON/图片。OpenAI-compatible 种子保留扩展字段，具体模型的参数支持范围可由管理员在模型定义中收紧；schema 通过不替代上游模型的语义校验。媒体生成仍使用下面的任务结果格式。旧 `/v1/chat/completions`、`/v1/vision/...` 和 `/v1/decision/predict` 推理入口已删除，返回 404。发布时须协调切换 ModelHub 和其他调用方；原生模型执行端路径不受此变更影响。
 
 每个 `model_key` 固定对应一种业务。输入校验、实例匹配和后端路由使用同一个键。业务含义变化时使用新键。
 
@@ -49,18 +49,11 @@
 
 ### G6 视觉推理
 
-在目标环境的网关配置中设置 `vision_addr`（私网 IP 和端口），例如美东路演 G6 的 `172.31.43.7:18280`。以下入口使用 API Bearer token，同步返回 G6 的状态码和结果。G6 负责选择执行卡；这些请求无需幂等键，也不进入生成任务队列。
+在目标环境的网关配置中设置 `vision_addr`（私网 IP 和端口），例如美东路演 G6 的 `172.31.43.7:18280`。视觉模型同样通过 `POST /v1/gateway/requests/{model_key}` 调用，携带 API Bearer Token、UUID `Idempotency-Key` 和 JSON `input`。字段定义从 `GET /v1/models/{model_key}` 的 `input_schema` 读取。
 
-| POST 路径 | 请求体 |
-|---|---|
-| `/v1/vision/human-parser/human_parser/predict` | JSON，`image` 为 Base64 |
-| `/v1/vision/human-yolo/predict` | multipart，`file` 或 Base64 `image`，可选 `conf`、`iou` |
-| `/v1/vision/facesim/compare` | multipart，`file_a`/`file_b` 或 Base64 `image_a`/`image_b`，可选 `face_index_a`、`face_index_b` |
-| `/v1/vision/segment-person/api/segment` | multipart，`file` 或 Base64 `image`，`method=person-birefnet-portrait`，可选 `preprocess`、`output`、`trace_id` |
-| `/v1/vision/segment-person/api/segment_subject` | multipart，`file` 或 Base64 `image`，`method=person-bria-rmbg`，可选 `output`、`trace_id` |
-| `/v1/vision/lens_distortion_correction/correct` | JSON，`base64` 为图片，可选 `mirror_lens`、`crop`、`sampler`、`preset` |
+图片以 Base64 放在 input 的 `image`、`file`、`image_a` / `image_b` 或 `base64` 等模型定义字段中；不接收图片 URL 或对象存储路径。Gateway 按登记协议编码原生 JSON/multipart，由登记实例的 endpoint 和容量决定派发，完成后返回原生结果。同步请求也记录到持久账本并占槽，但不经 RabbitMQ 生成任务队列。
 
-请将图片直接放在请求体内。入口拒绝 URL、对象存储路径及表中未列出的字段，避免调用方借用 G6 的网络和存储权限。
+管理接口 `GET /v1/vision/health` 继续用于视觉服务探测。
 
 ## 实例管理
 

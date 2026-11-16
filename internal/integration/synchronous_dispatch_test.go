@@ -40,14 +40,11 @@ func synchronousServer(t *testing.T, tasks *store.Store, cfg config.Config, upst
 	t.Cleanup(transport.CloseIdleConnections)
 	return startHTTPServer(t, app)
 }
-func sendSynchronous(t *testing.T, base, path, kind, body, id string, models ...string) *http.Response {
+func sendSynchronous(t *testing.T, base, path, kind, body, id string) *http.Response {
 	t.Helper()
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, base+path, strings.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
-	}
-	if len(models) > 0 {
-		req.Header.Set("X-Model-Key", models[0])
 	}
 	req.Header.Set("Authorization", "Bearer "+apiToken)
 	req.Header.Set("Content-Type", kind)
@@ -79,18 +76,15 @@ func TestSynchronousRoutesUseRegisteredTargets(t *testing.T) {
 	cfg.VisionAddr = "172.31.43.7:18280"
 	cfg.DecisionAddr = "172.31.3.219:8874"
 	cfg.VLMAddr = "172.31.3.219:30332"
-	const multipart = "multipart/form-data; boundary=fixture"
-	const form = "--fixture\r\nContent-Disposition: form-data; name=\"image\"\r\n\r\naW1hZ2U=\r\n--fixture--\r\n"
-	cases := []struct{ model, port, path, target, kind, body string }{
-		{"registered-parser-v2", "6104", "/v1/vision/human-parser/human_parser/predict", "/_dispatch/6104/human-parser/human_parser/predict", "application/json", `{"image":"aW1hZ2U="}`},
-		{protocol.HumanParseModel, "6105", "/v1/vision/human-parser/human_parser/predict", "/_dispatch/6105/human-parser/human_parser/predict", "application/json", `{"image":"aW1hZ2U="}`},
-		{protocol.HumanYOLOModel, "6102", "/v1/vision/human-yolo/predict", "/_dispatch/6102/human-yolo/predict", multipart, form},
-		{protocol.SegmentPersonModel, "6106", "/v1/vision/segment-person/api/segment", "/_dispatch/6106/segment-person/api/segment", multipart, form},
-		{protocol.SegmentSubjectModel, "6106", "/v1/vision/segment-person/api/segment_subject", "/_dispatch/6106/segment-person/api/segment_subject", multipart, form},
-		{protocol.LensCorrectionModel, "6117", "/v1/vision/lens_distortion_correction/correct", "/_dispatch/6117/lens_distortion_correction/correct", "application/json", `{"base64":"aW1hZ2U=","mirror_lens":false}`},
-		{protocol.FaceSimModel, "6103", "/v1/vision/facesim/compare", "/_dispatch/6103/facesim/compare", multipart, strings.Replace(form, `name="image"`, `name="image_a"`, 1)},
-		{protocol.DecisionModel, "19101", "/v1/decision/predict", "/v1/instances/19101/predict", multipart, form},
-		{protocol.DreamModel, "", "/v1/chat/completions", "/v1/chat/completions", "application/json", `{"model":"Vmind_dream_v1","messages":[{"role":"user","content":"hello"}]}`},
+	cases := []struct{ model, port, target, body string }{
+		{"registered-parser-v2", "6104", "/_dispatch/6104/human-parser/human_parser/predict", `{"input":{"image":"aW1hZ2U="}}`},
+		{protocol.HumanParseModel, "6105", "/_dispatch/6105/human-parser/human_parser/predict", `{"input":{"image":"aW1hZ2U="}}`},
+		{protocol.HumanYOLOModel, "6102", "/_dispatch/6102/human-yolo/predict", `{"input":{"image":"aW1hZ2U="}}`},
+		{protocol.SegmentPersonModel, "6106", "/_dispatch/6106/segment-person/api/segment", `{"input":{"image":"aW1hZ2U="}}`},
+		{protocol.SegmentSubjectModel, "6106", "/_dispatch/6106/segment-person/api/segment_subject", `{"input":{"image":"aW1hZ2U="}}`},
+		{protocol.LensCorrectionModel, "6117", "/_dispatch/6117/lens_distortion_correction/correct", `{"input":{"base64":"aW1hZ2U=","mirror_lens":false}}`},
+		{protocol.FaceSimModel, "6103", "/_dispatch/6103/facesim/compare", `{"input":{"image_a":"aW1hZ2U=","image_b":"aW1hZ2U="}}`},
+		{protocol.DreamModel, "", "/v1/chat/completions", `{"input":{"messages":[{"role":"user","content":"hello"}]}}`},
 	}
 	var expected string
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -109,7 +103,7 @@ func TestSynchronousRoutesUseRegisteredTargets(t *testing.T) {
 	defer upstream.Close()
 	base := synchronousServer(t, a, cfg, upstream)
 	// 已配置地址而未登记时必须拒绝，不能偷偷继续直连。
-	missing := sendSynchronous(t, base, cases[0].path, cases[0].kind, cases[0].body, uuid.NewString())
+	missing := sendSynchronous(t, base, "/v1/gateway/requests/"+cases[0].model, "application/json", cases[0].body, uuid.NewString())
 	missing.Body.Close()
 	if missing.StatusCode != http.StatusNotFound {
 		t.Fatalf("unregistered returned %d", missing.StatusCode)
@@ -138,7 +132,12 @@ func TestSynchronousRoutesUseRegisteredTargets(t *testing.T) {
 			}
 			expected = tc.target
 			id := uuid.NewString()
-			resp := sendSynchronous(t, base, tc.path+"?target=ignored", tc.kind, tc.body, id, tc.model)
+			rejected := sendSynchronous(t, base, "/v1/gateway/requests/"+tc.model+"?target=ignored", "application/json", tc.body, id)
+			rejected.Body.Close()
+			if rejected.StatusCode != http.StatusBadRequest {
+				t.Fatalf("extra routing selector returned %d", rejected.StatusCode)
+			}
+			resp := sendSynchronous(t, base, "/v1/gateway/requests/"+tc.model, "application/json", tc.body, id)
 			raw, err := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			if err != nil || resp.StatusCode != 200 || string(raw) != `{"answer":"unchanged"}` || resp.Header.Get("X-Model-Instance") != spec.ID {
@@ -148,7 +147,7 @@ func TestSynchronousRoutesUseRegisteredTargets(t *testing.T) {
 			if row.InstanceID != spec.ID || row.Protocol != spec.Protocol || row.ModelKey != spec.ModelKey || row.Endpoint != spec.Endpoint || row.TraceID != "1234567890abcdef1234567890abcdef" || row.QueuePublishAt != nil || strings.Contains(string(row.RequestPayload), "aW1hZ2U=") {
 				t.Fatalf("wrong dispatch evidence: %+v", row)
 			}
-			replay := sendSynchronous(t, base, tc.path, tc.kind, tc.body, id, tc.model)
+			replay := sendSynchronous(t, base, "/v1/gateway/requests/"+tc.model, "application/json", tc.body, id)
 			replay.Body.Close()
 			if replay.StatusCode != 409 {
 				t.Fatalf("replay must not execute again: %d", replay.StatusCode)
@@ -182,7 +181,7 @@ func TestSynchronousDisconnectAndUnknownOutcome(t *testing.T) {
 			registerReady(t, a, spec)
 			base := synchronousServer(t, a, cfg, upstream)
 			id := uuid.NewString()
-			resp := sendSynchronous(t, base, "/v1/chat/completions", "application/json", `{"model":"Vmind_dream_v1","stream":true}`, id)
+			resp := sendSynchronous(t, base, "/v1/gateway/requests/"+protocol.DreamModel, "application/json", `{"input":{"messages":[{"role":"user","content":"hello"}],"stream":true}}`, id)
 			if broken {
 				_, _ = io.ReadAll(resp.Body)
 				resp.Body.Close()
@@ -329,7 +328,7 @@ func TestSynchronousKnownFailureReleasesAndUnknownHolds(t *testing.T) {
 			registerReady(t, a, spec)
 			base := synchronousServer(t, a, cfg, upstream)
 			id := uuid.NewString()
-			resp := sendSynchronous(t, base, "/v1/chat/completions", "application/json", `{"model":"Vmind_dream_v1"}`, id)
+			resp := sendSynchronous(t, base, "/v1/gateway/requests/"+protocol.DreamModel, "application/json", `{"input":{"messages":[{"role":"user","content":"hello"}]}}`, id)
 			_, _ = io.ReadAll(resp.Body)
 			resp.Body.Close()
 			row := waitSynchronousState(t, db, id, request.StateFailed, unknown)

@@ -216,15 +216,3 @@ func (s *Store) RecordProbe(ctx context.Context, id string, checked time.Time, r
 	).SetHealthCheckedAt(checked).SetReady(ready).Save(ctx)
 	return err
 }
-
-// ModelProtocol 从已有登记解析处理方式；实例暂时下线或被清除不抹掉模型契约。
-func (s *Store) ModelProtocol(ctx context.Context, model string) (string, error) {
-	row, err := s.db.ModelInstance.Query().Where(modelinstance.ModelKeyEQ(model)).Select(modelinstance.FieldProtocol).First(ctx)
-	if ent.IsNotFound(err) {
-		return "", ErrModelUnregistered
-	}
-	if err != nil {
-		return "", err
-	}
-	return row.Protocol, nil
-}

@@ -79,7 +79,7 @@ func (s *Server) HTTPServer(listener net.Listener) *server.Hertz {
 	// 实例登记决定网关可以向哪些执行地址派单，因此使用管理凭据。
 	h.GET("/v1/models", s.auth("api", s.models))
 	h.PUT("/v1/admin/models/:model_key/schema", s.auth("admin", s.setModelSchema))
-	h.GET("/v1/models/:model_key", s.auth("api", s.modelProtocol))
+	h.GET("/v1/models/:model_key", s.auth("api", s.modelDetail))
 	h.POST("/v1/instances/register", s.auth("admin", s.register))
 	h.POST("/v1/instances/probe", s.auth("admin", s.probeInstance))
 	h.POST("/v1/instances/:id/drain", s.auth("admin", s.drain))
@@ -102,12 +102,7 @@ func (s *Server) HTTPServer(listener net.Listener) *server.Hertz {
 	h.POST("/v1/gateway/requests/cancel", s.auth("api", s.cancelRequest))
 	h.POST("/v1/gateway/requests/:model_key", s.auth("api", s.submit))
 	h.GET("/v1/gateway/requests", s.auth("api", s.get))
-	h.POST(chatCompletionsPath, s.auth("api", s.chatCompletions))
-	h.POST(decisionPredictPath, s.auth("api", s.decisionPredict))
 	h.GET("/v1/vision/health", s.auth("admin", s.visionHealth))
-	for _, route := range visionRoutes {
-		h.POST("/v1/vision"+route.path, s.auth("api", s.visionPredict(route)))
-	}
 	return h
 }
 
@@ -421,8 +416,7 @@ func (s *Server) submit(ctx context.Context, c *app.RequestContext) {
 	}
 	if !protocol.MediaProtocol(kind) {
 		<-s.uploads
-		c.Set(submissionMetadataKey, input.Metadata)
-		s.submitSynchronousInput(ctx, c, model, kind, input.Input)
+		s.submitSynchronousInput(ctx, c, model, kind, input.Input, input.Metadata)
 		return
 	}
 	raw, err = json.Marshal(input)

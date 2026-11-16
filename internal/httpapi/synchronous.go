@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/google/uuid"
 	"github.com/wgdl666/kangaroo/callmeta"
 	"github.com/wgdl666/modelGateway/ent"
 	"github.com/wgdl666/modelGateway/ent/request"
@@ -26,30 +25,13 @@ import (
 	"github.com/wgdl666/modelGateway/internal/telemetry"
 )
 
-const submissionMetadataKey = "gateway_submission_metadata"
-
 // 同步协议仍由原连接返回；受理、暂停与容量和异步任务使用同一份持久账本。
-func (s *Server) forwardSynchronous(ctx context.Context, c *app.RequestContext, client *http.Client, model, kind, path, contentType string, body []byte) {
+func (s *Server) forwardSynchronous(ctx context.Context, c *app.RequestContext, client *http.Client, model, kind, path, contentType string, body []byte, metadata protocol.Metadata) {
 	cfg := requestConfig(ctx)
 	id := string(c.GetHeader("Idempotency-Key"))
-	if id == "" {
-		id = uuid.NewString()
-	} else if !protocol.ValidID(id) {
-		writeError(c, 400, "invalid_request_id", "Idempotency-Key must be a UUID", "")
-		return
-	}
 	// 原图/文本只由当前连接持有，不在只用于追溯的同步记录里再存一份敏感正文。
 	digest := sha256.Sum256(body)
 	input, _ := json.Marshal(map[string]any{"content_type": contentType, "body_bytes": len(body), "body_sha256": hex.EncodeToString(digest[:])})
-	metadata := protocol.Metadata{TraceID: synchronousTraceID(c)}
-	if value, ok := c.Get(submissionMetadataKey); ok {
-		metadata = value.(protocol.Metadata)
-	}
-	metadata, err := freezeMetadata(ctx, c, metadata)
-	if err != nil {
-		writeError(c, 400, "invalid_metadata", err.Error(), id)
-		return
-	}
 	payload, _ := json.Marshal(protocol.Submission{Input: input, Metadata: metadata})
 	units := cfg.UnitsByModelKey[model]
 	if units == 0 {
@@ -102,28 +84,6 @@ func (s *Server) forwardSynchronous(ctx context.Context, c *app.RequestContext, 
 		}
 	}
 	s.executeSynchronous(ctx, c, client, task, path, contentType, body)
-}
-
-// ModelHub 的 HTTP 客户端发送 W3C traceparent；沿用显式 X-Trace-ID，缺省时从标准头提取，
-// 否则同步请求虽已完成，Ops 仍无法从模型调用的 Trace 关联到实例和占用记录。
-func synchronousTraceID(c *app.RequestContext) string {
-	if explicit := string(c.GetHeader("X-Trace-ID")); explicit != "" {
-		return explicit
-	}
-	parts := strings.Split(string(c.GetHeader("traceparent")), "-")
-	if len(parts) != 4 || parts[0] != "00" || len(parts[1]) != 32 || len(parts[2]) != 16 || len(parts[3]) != 2 {
-		return ""
-	}
-	// 不把截断、全零或非法的上下文记成有效关联；当前调用链使用 W3C 00 版。
-	for _, value := range parts[1:] {
-		if _, err := hex.DecodeString(value); err != nil || value != strings.ToLower(value) {
-			return ""
-		}
-	}
-	if strings.Trim(parts[1], "0") == "" || strings.Trim(parts[2], "0") == "" {
-		return ""
-	}
-	return parts[1]
 }
 
 func (s *Server) executeSynchronous(ctx context.Context, c *app.RequestContext, client *http.Client, task *ent.Request, path, contentType string, body []byte) {

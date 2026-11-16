@@ -15,7 +15,7 @@ import (
 )
 
 // 统一入口只做契约校验与编码分派，受理、占槽及终态仍由原执行路径处理。
-func (s *Server) submitSynchronousInput(ctx context.Context, c *app.RequestContext, model, kind string, raw json.RawMessage) {
+func (s *Server) submitSynchronousInput(ctx context.Context, c *app.RequestContext, model, kind string, raw json.RawMessage, metadata protocol.Metadata) {
 	cfg := requestConfig(ctx)
 	if kind == protocol.ChatProtocol || kind == protocol.DecisionProtocol {
 		var fields map[string]json.RawMessage
@@ -34,7 +34,7 @@ func (s *Server) submitSynchronousInput(ctx context.Context, c *app.RequestConte
 				return
 			}
 			c.Set(decisionChatStreamKey, stream)
-			s.forwardSynchronous(ctx, c, s.direct, model, kind, "/v1/predict", contentType, body)
+			s.forwardSynchronous(ctx, c, s.direct, model, kind, "/v1/predict", contentType, body, metadata)
 			return
 		}
 		if cfg.VLMAddr == "" {
@@ -48,7 +48,7 @@ func (s *Server) submitSynchronousInput(ctx context.Context, c *app.RequestConte
 			writeError(c, 400, "invalid_input", err.Error(), "")
 			return
 		}
-		s.forwardSynchronous(ctx, c, s.direct, model, kind, chatCompletionsPath, "application/json", body)
+		s.forwardSynchronous(ctx, c, s.direct, model, kind, "/v1/chat/completions", "application/json", body, metadata)
 		return
 	}
 	if cfg.VisionAddr == "" {
@@ -56,7 +56,7 @@ func (s *Server) submitSynchronousInput(ctx context.Context, c *app.RequestConte
 		return
 	}
 	for _, route := range visionRoutes {
-		if route.protocol != kind || route.modelKey == "" {
+		if route.protocol != kind {
 			continue
 		}
 		body, contentType, err := unifiedVisionBody(kind, route, raw)
@@ -70,7 +70,7 @@ func (s *Server) submitSynchronousInput(ctx context.Context, c *app.RequestConte
 			copy.Timeout = 180 * time.Second
 			client = &copy
 		}
-		s.forwardSynchronous(ctx, c, client, model, kind, route.path, contentType, body)
+		s.forwardSynchronous(ctx, c, client, model, kind, route.path, contentType, body, metadata)
 		return
 	}
 	writeError(c, 400, "invalid_protocol", "model has no synchronous executor", "")
