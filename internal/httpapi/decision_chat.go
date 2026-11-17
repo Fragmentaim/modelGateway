@@ -15,78 +15,91 @@ import (
 
 const decisionChatStreamKey = "decision_chat_stream"
 
-// prepareDecisionChat 只转换已登记的 Decision 输入，保留原生预设任务/自定义问题互斥和内联图片边界。
-func prepareDecisionChat(fields map[string]json.RawMessage) ([]byte, string, bool, error) {
-	var messages []struct {
-		Role    string          `json:"role"`
-		Content json.RawMessage `json:"content"`
+// prepareDecisionChat 编码已通过模型 Schema 的输入；消息类型、图片数量和 task/prompt 互斥由 Schema 约束。
+func prepareDecisionChat(fields map[string]any) ([]byte, string, bool, error) {
+	messages, ok := fields["messages"].([]any)
+	if !ok {
+		return nil, "", false, errors.New("cannot decode Decision messages")
 	}
-	if json.Unmarshal(fields["messages"], &messages) != nil {
-		return nil, "", false, errors.New("Decision requires messages")
-	}
-	var images []string
+	var imageURL string
 	var texts []string
-	for _, message := range messages {
-		var text string
-		if json.Unmarshal(message.Content, &text) == nil {
-			if message.Role == "user" {
-				texts = append(texts, text)
+	for _, value := range messages {
+		message, ok := value.(map[string]any)
+		if !ok {
+			return nil, "", false, errors.New("cannot decode Decision message")
+		}
+		switch content := message["content"].(type) {
+		case nil:
+			if message["role"] == "user" {
+				texts = append(texts, "")
 			}
-			continue
-		}
-		var parts []struct {
-			Type     string `json:"type"`
-			Text     string `json:"text"`
-			ImageURL struct {
-				URL string `json:"url"`
-			} `json:"image_url"`
-		}
-		if json.Unmarshal(message.Content, &parts) != nil {
-			return nil, "", false, errors.New("invalid Decision content")
-		}
-		for _, part := range parts {
-			switch part.Type {
-			case "text":
-				if message.Role == "user" {
-					texts = append(texts, part.Text)
+		case string:
+			if message["role"] == "user" {
+				texts = append(texts, content)
+			}
+		case []any:
+			for _, value := range content {
+				part, ok := value.(map[string]any)
+				if !ok {
+					return nil, "", false, errors.New("cannot decode Decision content part")
 				}
-			case "image_url":
-				images = append(images, part.ImageURL.URL)
-			default:
-				return nil, "", false, errors.New("unsupported Decision content")
+				switch part["type"] {
+				case "text":
+					text, err := decisionString(part["text"])
+					if err != nil {
+						return nil, "", false, err
+					}
+					if message["role"] == "user" {
+						texts = append(texts, text)
+					}
+				case "image_url":
+					url, ok := part["image_url"].(map[string]any)
+					if !ok {
+						return nil, "", false, errors.New("cannot decode Decision image URL")
+					}
+					var err error
+					imageURL, err = decisionString(url["url"])
+					if err != nil {
+						return nil, "", false, err
+					}
+				default:
+					return nil, "", false, errors.New("cannot encode Decision content type")
+				}
 			}
+		default:
+			return nil, "", false, errors.New("cannot decode Decision content")
 		}
 	}
-	if len(images) != 1 {
-		return nil, "", false, errors.New("Decision requires exactly one inline image")
-	}
-	prefix, encoded, ok := strings.Cut(images[0], ",")
-	if !ok || !strings.HasPrefix(prefix, "data:image/") || !strings.HasSuffix(prefix, ";base64") {
-		return nil, "", false, errors.New("Decision requires an inline image")
-	}
+	_, encoded, _ := strings.Cut(imageURL, ",")
 	image, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
-		return nil, "", false, errors.New("invalid Decision image")
+		return nil, "", false, err
 	}
-	// Decision 按扩展名读图片，必须从实际内容选择，不能信任调用方声明的 MIME。
+	// Decision 按扩展名读图片，从实际字节选择格式。
 	extension := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}[http.DetectContentType(image)]
 	if extension == "" {
 		return nil, "", false, errors.New("Decision requires a JPEG, PNG or WebP image")
 	}
-	var traits struct {
-		Task    string   `json:"task"`
-		Options []string `json:"options"`
+	var traits map[string]any
+	if value := fields["model_traits"]; value != nil {
+		var ok bool
+		traits, ok = value.(map[string]any)
+		if !ok {
+			return nil, "", false, errors.New("cannot decode Decision model_traits")
+		}
 	}
-	if raw := fields["model_traits"]; len(raw) > 0 && json.Unmarshal(raw, &traits) != nil {
-		return nil, "", false, errors.New("invalid Decision model_traits")
+	task, err := decisionString(traits["task"])
+	if err != nil {
+		return nil, "", false, err
 	}
-	task, prompt := strings.TrimSpace(traits.Task), strings.TrimSpace(strings.Join(texts, "\n"))
-	if (task == "") == (prompt == "") || (task != "" && len(traits.Options) > 0) {
-		return nil, "", false, errors.New("Decision requires a preset task or a custom prompt with optional options")
-	}
+	task, prompt := strings.TrimSpace(task), strings.TrimSpace(strings.Join(texts, "\n"))
 	var stream bool
-	if raw := fields["stream"]; len(raw) > 0 && json.Unmarshal(raw, &stream) != nil {
-		return nil, "", false, errors.New("stream must be a boolean")
+	if value := fields["stream"]; value != nil {
+		var ok bool
+		stream, ok = value.(bool)
+		if !ok {
+			return nil, "", false, errors.New("cannot decode Decision stream")
+		}
 	}
 	var body bytes.Buffer
 	out := multipart.NewWriter(&body)
@@ -104,16 +117,36 @@ func prepareDecisionChat(fields map[string]json.RawMessage) ([]byte, string, boo
 	if err = out.WriteField(key, value); err != nil {
 		return nil, "", false, err
 	}
-	if len(traits.Options) > 0 {
-		options, _ := json.Marshal(traits.Options)
-		if err = out.WriteField("options", string(options)); err != nil {
-			return nil, "", false, err
+	if value := traits["options"]; value != nil {
+		options, ok := value.([]any)
+		if !ok {
+			return nil, "", false, errors.New("cannot decode Decision options")
+		}
+		if len(options) > 0 {
+			raw, err := json.Marshal(options)
+			if err != nil {
+				return nil, "", false, err
+			}
+			if err = out.WriteField("options", string(raw)); err != nil {
+				return nil, "", false, err
+			}
 		}
 	}
 	if err = out.Close(); err != nil {
 		return nil, "", false, err
 	}
 	return body.Bytes(), out.FormDataContentType(), stream, nil
+}
+
+func decisionString(value any) (string, error) {
+	if value == nil {
+		return "", nil
+	}
+	text, ok := value.(string)
+	if !ok {
+		return "", errors.New("cannot decode Decision string field")
+	}
+	return text, nil
 }
 
 func writeDecisionChat(c *app.RequestContext, body *synchronousBody, id, model string, stream bool) {

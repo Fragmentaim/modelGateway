@@ -1,0 +1,746 @@
+{
+  "date": "2026-11-17",
+  "sources": {
+    "image": "d3f8ffa2ca7db307da60815795237018349f9e2e",
+    "gateway": "8c9fbfc50b88037ca1e172222ce69db43e2f7a7b",
+    "video_acceptance": "58f06a8dc588e8510b1a1a5b9de91551d3c7b6a8"
+  },
+  "images": {
+    "codex-vmind-qwen:d3f8ffa2": "sha256:25b7416aec77617ad107650da2d5226047f40f6191f59db588e8833726286e7f",
+    "codex-vmind-flux:d3f8ffa2": "sha256:2ed09856e54c45a6898c8ee6b2e46e2a0f72d835f370048eca895488c215a9d6",
+    "codex-vmind-router:d3f8ffa2": "sha256:17bb22b904afd90236857933662ea4529f2a013da5388cedaf17a98106240dc0",
+    "codex-model-gateway:8c9fbfc": "sha256:154aa0917f90cd7e6096f3f8463f0ab01d39babbb58b7751caca31bbef4ab4a7"
+  },
+  "cases": [
+    {
+      "case": "business-body",
+      "name": "business-body",
+      "request_id": "8c843397-bb11-4d8d-a94d-5d3d7dc9d47a",
+      "model": "Vmind_bodymodel_v1.0",
+      "seconds": 7.207,
+      "media": {
+        "size": [
+          1024,
+          1536
+        ],
+        "mode": "RGB",
+        "sha256": "2afa83378f62dc8d65d1df078c8bfc98099656cc8093752261f63c8def4a5da1",
+        "bytes": 930978
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/Qwen-Image-2.1-BodyModel-OriginalFine-SFT-20261113",
+          "revision": "74f1ac52208bccea564520f8b654128061dfb652",
+          "sha256": "7af4773e7ebb5f73a2f484bfb22f87c7234cb834300130b99bac9293e7e91d3a"
+        },
+        "pe_status": "disabled",
+        "parameters": {
+          "seed": 3661194835,
+          "width": 1024,
+          "height": 1536,
+          "steps": 8,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0,
+          "pe_ms": 0,
+          "inference_ms": 6533.037,
+          "total_ms": 6743.566,
+          "gateway_queue_ms": 18.965,
+          "gateway_total_ms": 6809.234876
+        },
+        "effective_prompt_sha256": "abb769266da97ebe9f09e064f43297eb36eb2aec98046e90f3c899b78e0ef682"
+      },
+      "instance_id": "candidate-gpu2-0",
+      "replay_verified": true
+    },
+    {
+      "case": "business-cloth",
+      "name": "business-cloth",
+      "request_id": "16a2d86d-df38-4f47-a3df-d747ef1e521f",
+      "model": "Vmind_cloth_gen_v1.0",
+      "seconds": 9.205,
+      "media": {
+        "size": [
+          1024,
+          1024
+        ],
+        "mode": "RGB",
+        "sha256": "ffc9b6de35d847bcd8258579a41c1acda02a9ecc82790a8c6d82237a4872536b",
+        "bytes": 886071
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 1,
+            "last_reason": "ValueError"
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/FLUX.2-klein-9B-VTOFF-R3-SFT-20261108",
+          "revision": "c05f41471a987ed1e7d70c4ab1fec87c8f531f77",
+          "sha256": "adb1df7eaac5d45720b285e138c3cbbbb691919159e6a6155d7b9aff69474ad8"
+        },
+        "pe_status": "fallback",
+        "pe_fallback_reason": "PE feature fields are missing, duplicated or invalid",
+        "parameters": {
+          "seed": 4171618197,
+          "width": 1024,
+          "height": 1024,
+          "steps": 4,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.699,
+          "pe_ms": 6191.8,
+          "inference_ms": 2100.639,
+          "total_ms": 8519.497,
+          "gateway_queue_ms": 22.29,
+          "gateway_total_ms": 8577.970565
+        },
+        "effective_prompt_sha256": "f8d5f5c78fed1824a777fb4c210eb0272be547cbaf2615d27eab6942c1b7625f"
+      },
+      "instance_id": "candidate-gpu2-2",
+      "replay_verified": true
+    },
+    {
+      "case": "business-outfit",
+      "name": "business-outfit",
+      "request_id": "5c433d69-fb2a-4d7a-874d-a239106c24f6",
+      "model": "Vmind_outfit_v1.0",
+      "seconds": 12.428,
+      "media": {
+        "size": [
+          1024,
+          1536
+        ],
+        "mode": "RGB",
+        "sha256": "98febd2f9c60097725a8b22b3a048b9b8dd00f721a5bcdfe2491c65e687c1433",
+        "bytes": 353774
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/Qwen-Image-2.1-VTON-AdaptiveCaption-SFT-20261108",
+          "revision": "4c1d9e4a74d9ac75a110737cee311a5e92f32766"
+        },
+        "pe_status": "fallback",
+        "pe_fallback_reason": "no_explicit_grid_inventory",
+        "parameters": {
+          "seed": 673597559,
+          "width": 1024,
+          "height": 1536,
+          "steps": 8,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.0006062909960746765,
+          "pe_ms": 2916.570615954697,
+          "inference_ms": 7802.104,
+          "total_ms": 10925.173406954855,
+          "gateway_queue_ms": 66.003,
+          "gateway_total_ms": 11299.304433
+        },
+        "effective_prompt_sha256": "697a784631b31b60158cd50b55b205b4eb86ad9c18c77a7963cde031ac98c8d9"
+      },
+      "instance_id": "candidate-gpu2-1",
+      "replay_verified": true
+    },
+    {
+      "case": "business-wardrobe",
+      "name": "business-wardrobe",
+      "request_id": "fba319c8-d06e-4038-ba9a-d69f9981accc",
+      "model": "Vmind_wardrobe_v1.0",
+      "seconds": 9.185,
+      "media": {
+        "size": [
+          1024,
+          1024
+        ],
+        "mode": "RGB",
+        "sha256": "aedec25bd170810824115e7585cd2a329d9b86d293a9be6170f5d4ee66b17369",
+        "bytes": 990306
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 1,
+            "last_reason": "ValueError"
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/FLUX.2-klein-9B-VTOFF-R3-SFT-20261108",
+          "revision": "c05f41471a987ed1e7d70c4ab1fec87c8f531f77",
+          "sha256": "adb1df7eaac5d45720b285e138c3cbbbb691919159e6a6155d7b9aff69474ad8"
+        },
+        "pe_status": "fallback",
+        "pe_fallback_reason": "PE feature fields are missing, duplicated or invalid",
+        "parameters": {
+          "seed": 4288547646,
+          "width": 1024,
+          "height": 1024,
+          "steps": 4,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.669,
+          "pe_ms": 5946.693,
+          "inference_ms": 2215.079,
+          "total_ms": 8491.662,
+          "gateway_queue_ms": 11.714,
+          "gateway_total_ms": 8538.907943
+        },
+        "effective_prompt_sha256": "f8d5f5c78fed1824a777fb4c210eb0272be547cbaf2615d27eab6942c1b7625f"
+      },
+      "instance_id": "candidate-gpu2-3",
+      "replay_verified": true
+    },
+    {
+      "case": "generic-body",
+      "name": "generic-body",
+      "request_id": "18972229-3503-4267-a2fa-011f02935db7",
+      "model": "Vmind_bodymodel_generic_v1.0",
+      "seconds": 2.188,
+      "media": {
+        "size": [
+          512,
+          768
+        ],
+        "mode": "RGB",
+        "sha256": "ba54c373f1adb804e34fe6fdd18b0e4f5de1ef25fcd0ee7ed28bfb028ab90c91",
+        "bytes": 195754
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/Qwen-Image-2.1-BodyModel-OriginalFine-SFT-20261113",
+          "revision": "74f1ac52208bccea564520f8b654128061dfb652",
+          "sha256": "7af4773e7ebb5f73a2f484bfb22f87c7234cb834300130b99bac9293e7e91d3a"
+        },
+        "pe_status": "disabled",
+        "parameters": {
+          "seed": 42,
+          "width": 512,
+          "height": 768,
+          "steps": 8,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0,
+          "pe_ms": 0,
+          "inference_ms": 1861.8574370630085,
+          "total_ms": 1861.947,
+          "gateway_queue_ms": 12.873,
+          "gateway_total_ms": 1949.125018
+        },
+        "effective_prompt_sha256": "c5bba90a018f909f2c6042567e3b1f38da374682fc4a175a6aa2dd96b17b3e6a"
+      },
+      "instance_id": "candidate-gpu2-5",
+      "replay_verified": true
+    },
+    {
+      "case": "generic-body-rgba",
+      "name": "generic-body-rgba",
+      "request_id": "bb208a6b-ba81-40e4-b895-f305a7f582f1",
+      "model": "Vmind_bodymodel_generic_v1.0",
+      "seconds": 2.184,
+      "media": {
+        "size": [
+          512,
+          768
+        ],
+        "mode": "RGBA",
+        "sha256": "c44f56e75c6382511f65426546971a976541a7d6a60ede97da2533aa361c7029",
+        "bytes": 126729
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/Qwen-Image-2.1-BodyModel-OriginalFine-SFT-20261113",
+          "revision": "74f1ac52208bccea564520f8b654128061dfb652",
+          "sha256": "7af4773e7ebb5f73a2f484bfb22f87c7234cb834300130b99bac9293e7e91d3a"
+        },
+        "pe_status": "disabled",
+        "parameters": {
+          "seed": 42,
+          "width": 512,
+          "height": 768,
+          "steps": 8,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0,
+          "pe_ms": 0,
+          "inference_ms": 1668.8419352285564,
+          "total_ms": 1668.929,
+          "gateway_queue_ms": 11.771,
+          "gateway_total_ms": 1750.892311
+        },
+        "effective_prompt_sha256": "b4c770e021d676e7ff711583cd2f74f144e6d3f06ff4d5f60bc8416a2b08d396"
+      },
+      "instance_id": "candidate-gpu2-5",
+      "replay_verified": true
+    },
+    {
+      "case": "generic-outfit",
+      "name": "generic-outfit",
+      "request_id": "b31a9ad9-4758-4c25-82eb-c549678385ed",
+      "model": "Vmind_outfit_generic_v1.0",
+      "seconds": 3.52,
+      "media": {
+        "size": [
+          512,
+          768
+        ],
+        "mode": "RGB",
+        "sha256": "dde17fc78a3e1340daa0bbe7f033eccbb1ba4c78c8b05a4be3cc4e5153182b43",
+        "bytes": 79556
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/Qwen-Image-2.1-VTON-AdaptiveCaption-SFT-20261108",
+          "revision": "4c1d9e4a74d9ac75a110737cee311a5e92f32766",
+          "sha256": "d05710ee041b8b15768cb6995af13a1e88a26ca49f76cbb724e486b21a21d02c"
+        },
+        "pe_status": "disabled",
+        "parameters": {
+          "seed": 42,
+          "width": 512,
+          "height": 768,
+          "steps": 8,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0,
+          "pe_ms": 0,
+          "inference_ms": 1780.830014962703,
+          "total_ms": 1780.906,
+          "gateway_queue_ms": 70.476,
+          "gateway_total_ms": 2084.317269
+        },
+        "effective_prompt_sha256": "d6f3c5a79896ccdbf7c90762acacf8b2121a86a8408aa3fea97ec7f2e8ec8c10"
+      },
+      "instance_id": "candidate-gpu2-6",
+      "replay_verified": true
+    },
+    {
+      "case": "generic-wardrobe",
+      "name": "generic-wardrobe",
+      "request_id": "ac6eba46-e9e3-429a-ae1d-56c5fa23fab2",
+      "model": "Vmind_wardrobe_generic_v1.0",
+      "seconds": 2.222,
+      "media": {
+        "size": [
+          512,
+          512
+        ],
+        "mode": "RGB",
+        "sha256": "685c2f689cc465a4e146f1671be3f39dc9c221a8fe6d872e40ac18a8d7fec9ae",
+        "bytes": 315230
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/FLUX.2-klein-9B-VTOFF-R3-SFT-20261108",
+          "revision": "c05f41471a987ed1e7d70c4ab1fec87c8f531f77",
+          "sha256": "adb1df7eaac5d45720b285e138c3cbbbb691919159e6a6155d7b9aff69474ad8"
+        },
+        "pe_status": "disabled",
+        "parameters": {
+          "seed": 42,
+          "width": 512,
+          "height": 512,
+          "steps": 4,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.512,
+          "pe_ms": 0,
+          "inference_ms": 1099.685,
+          "total_ms": 1203.263,
+          "gateway_queue_ms": 17.12,
+          "gateway_total_ms": 1272.015132
+        },
+        "effective_prompt_sha256": "58ee2f6e8189fbdd0bd3f27ef68584c5e84a4decc6300c0dbdac5c73ce9f63a4"
+      },
+      "instance_id": "candidate-gpu2-4",
+      "replay_verified": true
+    },
+    {
+      "case": "multipart",
+      "request_id": "72473e15-9ce2-4d3e-8989-e5a39e1142bd",
+      "media": {
+        "size": [
+          512,
+          768
+        ],
+        "mode": "RGB",
+        "sha256": "bad6e8ec032bd04549de02312d40d88f830283efb9bf5d566c1ec7ddb981bc11",
+        "bytes": 80704
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/Qwen-Image-2.1-VTON-AdaptiveCaption-SFT-20261108",
+          "revision": "4c1d9e4a74d9ac75a110737cee311a5e92f32766",
+          "sha256": "d05710ee041b8b15768cb6995af13a1e88a26ca49f76cbb724e486b21a21d02c"
+        },
+        "pe_status": "disabled",
+        "parameters": {
+          "seed": 42,
+          "width": 512,
+          "height": 768,
+          "steps": 8,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0,
+          "pe_ms": 0,
+          "inference_ms": 1809.209612198174,
+          "total_ms": 1809.297,
+          "gateway_queue_ms": 68.282,
+          "gateway_total_ms": 2117.236789
+        },
+        "effective_prompt_sha256": "60e331d045fbef307bd0d720ecd44dce1f8fb3d889dac3ac3dd2d1e3eb6ca637"
+      }
+    },
+    {
+      "case": "video",
+      "request_id": "27951eeb-5692-4d41-b7cc-b663165591f1",
+      "media": {
+        "programs": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "width": 704,
+            "height": 1280,
+            "r_frame_rate": "24/1",
+            "nb_frames": "97"
+          }
+        ],
+        "format": {
+          "duration": "4.041667"
+        }
+      },
+      "sha256": "43cbad0921f2b7476554eedfbd6cf7dc2d81e387e55a8813e4951eeb624c9567",
+      "bytes": 774258,
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "ltx-2.3-22b-distilled-1.1.safetensors",
+          "revision": null,
+          "sha256": "b33b7fe4bbfe084f484be4aaf90b0f1d95dca20d403ac4c0e037eb8c4f0af7cc",
+          "lora": {
+            "checkpoint": "lora_weights_step_00731.safetensors",
+            "revision": null,
+            "sha256": "147a51420b553d2d18586dd22e548d5094271662da597993cb6b1f97ef0ffdb3",
+            "strength": 1
+          }
+        },
+        "pe_status": "disabled",
+        "parameters": {
+          "seed": 42,
+          "width": 704,
+          "height": 1280,
+          "steps": 11,
+          "guidance": null,
+          "output_format": "mp4",
+          "stage_steps": [
+            8,
+            3
+          ],
+          "fps": 24,
+          "num_frames": 97
+        },
+        "timings": {
+          "queue_ms": 0.613,
+          "pe_ms": 0,
+          "inference_ms": 7836.2,
+          "total_ms": 7841.219,
+          "gateway_queue_ms": 12.188,
+          "gateway_total_ms": 9219.145449
+        },
+        "effective_prompt_sha256": "68921cc07de91c8361655f1d63ee0bec5ef5c1714a7f4a82a0beef9d4e8372a4"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "business-seed",
+      "status": 400,
+      "detail_status": 404,
+      "request_id": "93f34fad-ea42-44f0-9331-56df1e84a273"
+    },
+    {
+      "name": "generic-steps",
+      "status": 400,
+      "detail_status": 404,
+      "request_id": "bf186465-54d2-40a2-a355-95e24ef786fd"
+    },
+    {
+      "name": "generic-null",
+      "status": 400,
+      "detail_status": 404,
+      "request_id": "e70cb327-e0b4-4a2d-bcfb-b94a562985af"
+    },
+    {
+      "name": "generic-overflow-seed",
+      "status": 400,
+      "detail_status": 404,
+      "request_id": "40fc9208-743c-4d00-a18e-4d482275acb4"
+    }
+  ],
+  "capacity": {
+    "ids": [
+      "f1c95c56-f289-47fe-a34e-966163d4a1f6",
+      "b764077c-fedd-4dcc-9700-e2e723d958ae"
+    ],
+    "max_reserved": 1,
+    "samples_count": 50
+  },
+  "worker_replay": {
+    "request_id": "11527d64-ec99-451f-8f61-e1acbb7e0fa3",
+    "first_status": 200,
+    "replay_status": 200,
+    "changed_input_status": 409,
+    "before": [
+      {
+        "total_tasks": 14,
+        "completed_tasks": 14,
+        "failed_tasks": 0
+      },
+      {
+        "total_tasks": 10,
+        "completed_tasks": 10,
+        "failed_tasks": 0
+      }
+    ],
+    "after": [
+      {
+        "total_tasks": 15,
+        "completed_tasks": 15,
+        "failed_tasks": 0
+      },
+      {
+        "total_tasks": 10,
+        "completed_tasks": 10,
+        "failed_tasks": 0
+      }
+    ],
+    "after_replay": [
+      {
+        "total_tasks": 15,
+        "completed_tasks": 15,
+        "failed_tasks": 0
+      },
+      {
+        "total_tasks": 10,
+        "completed_tasks": 10,
+        "failed_tasks": 0
+      }
+    ]
+  },
+  "limitations": [
+    "Isolated Gateway, PostgreSQL, RabbitMQ and file-backed S3-protocol fixture; no production Gateway/database migration or actual AWS S3 acceptance.",
+    "Image uses pinned live base image plus candidate source and declared CuPy dependency; no registry rollout.",
+    "Video uses the current GPU1 worker; this PR changes acceptance tooling only.",
+    "ModelHub uses CPU HTTP contract tests; no deployed Hub-to-GPU production request in this run.",
+    "Business cloth/wardrobe used existing PE validation fallback; outfit used no_explicit_grid_inventory fallback. Successful PE enhancement is not covered."
+  ],
+  "restoration": [
+    {
+      "id": "519eeb3d3b5045d9a228147d9455768f",
+      "model_key": "Vmind_bodymodel_v1.0",
+      "resource_group": "g7e/gpu2",
+      "healthy": true,
+      "eligible": true,
+      "draining": null,
+      "reserved_requests": 0
+    },
+    {
+      "id": "vmind-3dd0cef3-c45b-421d-8e11-a104bb9e0a55",
+      "model_key": "Vmind_wardrobe_v1.0",
+      "resource_group": "g7e/gpu2",
+      "healthy": true,
+      "eligible": true,
+      "draining": null,
+      "reserved_requests": 0
+    },
+    {
+      "id": "vmind-a9a15008-bff6-4ac6-bf15-e2376c928155",
+      "model_key": "Vmind_wardrobe_v1.0",
+      "resource_group": "g7e/gpu3",
+      "healthy": true,
+      "eligible": true,
+      "draining": null,
+      "reserved_requests": 0
+    },
+    {
+      "id": "vmind-e7073153-37f2-4ab2-ad86-b8c1a012af2a",
+      "model_key": "Vmind_bodymodel_v1.0",
+      "resource_group": "g7e/gpu3",
+      "healthy": true,
+      "eligible": true,
+      "draining": null,
+      "reserved_requests": 0
+    },
+    {
+      "id": "g7e-gpu0-video",
+      "model_key": "Vmind_outfit_video_v1.0",
+      "resource_group": "g7e/gpu0",
+      "healthy": true,
+      "eligible": true,
+      "draining": null,
+      "reserved_requests": 0
+    },
+    {
+      "id": "g7e-gpu2-qwen-vton-20261108",
+      "model_key": "Vmind_outfit_v1.0",
+      "resource_group": "g7e/gpu2",
+      "healthy": true,
+      "eligible": true,
+      "draining": null,
+      "reserved_requests": 0
+    },
+    {
+      "id": "g7e-gpu2-cloth",
+      "model_key": "Vmind_cloth_gen_v1.0",
+      "resource_group": "g7e/gpu2",
+      "healthy": true,
+      "eligible": true,
+      "draining": null,
+      "reserved_requests": 0
+    },
+    {
+      "id": "g7e-gpu3-cloth",
+      "model_key": "Vmind_cloth_gen_v1.0",
+      "resource_group": "g7e/gpu3",
+      "healthy": true,
+      "eligible": true,
+      "draining": null,
+      "reserved_requests": 0
+    },
+    {
+      "id": "g7e-gpu1-video",
+      "model_key": "Vmind_outfit_video_v1.0",
+      "resource_group": "g7e/gpu1",
+      "healthy": true,
+      "eligible": true,
+      "draining": null,
+      "reserved_requests": 0
+    },
+    {
+      "id": "g7e-gpu3-qwen-vton-20261108",
+      "model_key": "Vmind_outfit_v1.0",
+      "resource_group": "g7e/gpu3",
+      "healthy": true,
+      "eligible": true,
+      "draining": null,
+      "reserved_requests": 0
+    }
+  ],
+  "candidate_containers_removed": true
+}

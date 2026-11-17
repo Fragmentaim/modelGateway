@@ -11,12 +11,6 @@ import (
 	"github.com/wgdl666/modelGateway/internal/config"
 )
 
-type directRoundTrip func(*http.Request) (*http.Response, error)
-
-func (f directRoundTrip) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req)
-}
-
 func TestChatCompletions(t *testing.T) {
 	const response = `{"model":"Vmind_dream_v1","choices":[{"message":{"content":"red"}}]}`
 	request := `{"model":"Vmind_dream_v1","messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,` +

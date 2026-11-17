@@ -64,35 +64,35 @@ ssh -N -L 18874:127.0.0.1:8874 aws-g7e2
 
 ## VLM 模型
 
-VLM 使用 Qwen3.5-35B-A3B 和 checkpoint-684 LoRA，采用四卡张量并行。调用走美东路演 `modelGateway` 的 OpenAI Chat Completions 接口。
+VLM 使用 Qwen3.5-35B-A3B 和 checkpoint-684 LoRA，采用四卡张量并行。调用走美东路演 `modelGateway` 的统一接口，input 使用 OpenAI Chat Completions 字段。
 
 | 项目 | 值 |
 | --- | --- |
 | 环境 | 美东路演（`ppe_exhibition`） |
 | 模型名 | `Vmind_dream_v1`（区分大小写） |
-| 对话接口 | `POST http://model-gateway.tomirro.prod:18580/v1/chat/completions` |
+| 对话接口 | `POST http://model-gateway.tomirro.prod:18580/v1/gateway/requests/Vmind_dream_v1` |
 | 网关就绪检查 | `GET http://model-gateway.tomirro.prod:18580/_gateway/ready` |
 
 ### 鉴权
 
 从获准访问网关的美东路演内网环境发起请求。先将路演网关的业务 API Token 设置为环境变量 `MODEL_GATEWAY_API_TOKEN`。
 
-对话请求携带 `Authorization: Bearer <API Token>` 和 `Content-Type: application/json` 请求头。下面两个示例都从环境变量读取 Token。
+对话请求携带 `Authorization: Bearer <API Token>`、UUID `Idempotency-Key` 和 `Content-Type: application/json` 请求头。下面两个示例都从环境变量读取 Token。
 
 ### 纯文本调用
 
 ```bash
 curl --fail-with-body --max-time 125 \
-  'http://model-gateway.tomirro.prod:18580/v1/chat/completions' \
+  'http://model-gateway.tomirro.prod:18580/v1/gateway/requests/Vmind_dream_v1' \
   -H "Authorization: Bearer ${MODEL_GATEWAY_API_TOKEN:?请先设置 MODEL_GATEWAY_API_TOKEN}" \
   -H 'Content-Type: application/json' \
-  --data '{
-    "model": "Vmind_dream_v1",
+  -H "Idempotency-Key: $(uuidgen | tr '[:upper:]' '[:lower:]')" \
+  --data '{"input":{
     "messages": [
       {"role": "user", "content": "你好，请用一句话介绍你自己。"}
     ],
     "max_tokens": 512
-  }'
+  }}'
 ```
 
 ### 带图调用
@@ -105,18 +105,19 @@ import os
 from pathlib import Path
 
 import requests
+import uuid
 
 image_base64 = base64.b64encode(Path("photo.jpg").read_bytes()).decode("ascii")
 api_token = os.environ["MODEL_GATEWAY_API_TOKEN"]
 
 response = requests.post(
-    "http://model-gateway.tomirro.prod:18580/v1/chat/completions",
+    "http://model-gateway.tomirro.prod:18580/v1/gateway/requests/Vmind_dream_v1",
     headers={
         "Authorization": f"Bearer {api_token}",
         "Content-Type": "application/json",
+        "Idempotency-Key": str(uuid.uuid4()),
     },
-    json={
-        "model": "Vmind_dream_v1",
+    json={"input":{
         "messages": [
             {
                 "role": "user",
@@ -136,7 +137,7 @@ response = requests.post(
         ],
         "max_tokens": 512,
         "temperature": 0.2,
-    },
+    }},
     timeout=125,
 )
 

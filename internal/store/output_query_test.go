@@ -34,3 +34,15 @@ func TestRequestOutputDoesNotLoadPayload(t *testing.T) {
 		t.Fatalf("unexpected output projection: %s", d.query)
 	}
 }
+
+func TestProbeInstancesDoesNotLoadSchema(t *testing.T) {
+	d := &outputQueryDriver{stop: errors.New("query captured")}
+	s := New(ent.NewClient(ent.Driver(d)))
+	_, err := s.ProbeInstances(t.Context())
+	if !errors.Is(err, d.stop) {
+		t.Fatalf("query not captured: %v", err)
+	}
+	if strings.Contains(d.query, "input_schema") || !strings.Contains(d.query, `"gpu_devices"`) || !strings.Contains(d.query, `"health_url"`) {
+		t.Fatalf("unexpected probe projection: %s", d.query)
+	}
+}

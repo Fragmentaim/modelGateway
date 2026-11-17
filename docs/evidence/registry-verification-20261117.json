@@ -1,0 +1,38 @@
+[
+  {
+    "name": "image-flux",
+    "reference": "054043816891.dkr.ecr.us-east-1.amazonaws.com/vmind-image@sha256:58338733f912b9517cb17b0f8b4cacf9252646dab2b0b341bd10a90fc268efbb",
+    "tag": "054043816891.dkr.ecr.us-east-1.amazonaws.com/vmind-image:integration-flux-56ac90880102d1e9db61673e0b9ec9c9f9612b9c",
+    "verified": true
+  },
+  {
+    "name": "image-qwen",
+    "reference": "054043816891.dkr.ecr.us-east-1.amazonaws.com/vmind-image@sha256:0ea0034c6a3005ee0c626e644c87b6c117569aca3ee37d4e3d1b41574bf305f8",
+    "tag": "054043816891.dkr.ecr.us-east-1.amazonaws.com/vmind-image:integration-qwen-56ac90880102d1e9db61673e0b9ec9c9f9612b9c",
+    "verified": true
+  },
+  {
+    "name": "image-endpoint",
+    "reference": "054043816891.dkr.ecr.us-east-1.amazonaws.com/vmind-image@sha256:8281c37dae804a4236022aa91eccb2117ab5b84c738b2773f4e9121208b37319",
+    "tag": "054043816891.dkr.ecr.us-east-1.amazonaws.com/vmind-image:integration-endpoint-56ac90880102d1e9db61673e0b9ec9c9f9612b9c",
+    "verified": true
+  },
+  {
+    "name": "gateway",
+    "reference": "054043816891.dkr.ecr.us-east-2.amazonaws.com/wg/model-gateway@sha256:b750318e64e01e92216705aa80581646f37b9defcc55fa0728618477a16af61d",
+    "tag": "054043816891.dkr.ecr.us-east-2.amazonaws.com/wg/model-gateway:candidate-git-6639cda9241d150cea186c5ec9f9d97eb8b2843d",
+    "verified": true
+  },
+  {
+    "name": "hub",
+    "reference": "054043816891.dkr.ecr.us-east-2.amazonaws.com/wg/modelhub@sha256:8775d3b40841e5b8f46fc55b251f1a1c1c0349264a24ca9f2b712e39e7ffc54f",
+    "tag": "054043816891.dkr.ecr.us-east-2.amazonaws.com/wg/modelhub:candidate-git-87beb8417895c05af9cf60389f4e27dc78ddd0d9",
+    "verified": true
+  },
+  {
+    "name": "hub-migration",
+    "reference": "054043816891.dkr.ecr.us-east-2.amazonaws.com/wg/modelhub@sha256:3963ceee5727cdd1d48b6fd985d4489bf6d12b0ce5eae44fc629f2cf031af6cc",
+    "tag": "054043816891.dkr.ecr.us-east-2.amazonaws.com/wg/modelhub:candidate-migration-git-87beb8417895c05af9cf60389f4e27dc78ddd0d9",
+    "verified": true
+  }
+]

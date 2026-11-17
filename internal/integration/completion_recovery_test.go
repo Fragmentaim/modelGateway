@@ -60,7 +60,7 @@ func TestSynchronousCompletionRecoversAfterRowLockTimeout(t *testing.T) {
 	spec := testInstance(protocol.DreamModel, "http://"+cfg.VLMAddr, 1)
 	registerReady(t, tasks, spec)
 	base := synchronousServer(t, tasks, cfg, upstream)
-	resp := sendSynchronous(t, base, "/v1/chat/completions", "application/json", `{"model":"Vmind_dream_v1"}`, id)
+	resp := sendSynchronous(t, base, "/v1/gateway/requests/"+protocol.DreamModel, "application/json", `{"input":{"messages":[{"role":"user","content":"hello"}]}}`, id)
 	body, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {

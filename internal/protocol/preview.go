@@ -48,8 +48,10 @@ func previewFields(payload json.RawMessage) (map[string]json.RawMessage, []json.
 		return nil, nil, errors.New("stored input is unavailable")
 	}
 	var images []json.RawMessage
-	if err := json.Unmarshal(fields["images"], &images); err != nil {
-		return nil, nil, err
+	if raw, exists := fields["images"]; exists {
+		if err := json.Unmarshal(raw, &images); err != nil {
+			return nil, nil, err
+		}
 	}
 	delete(fields, "images")
 	return fields, images, nil

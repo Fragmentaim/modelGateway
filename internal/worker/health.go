@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 type healthReport struct {
 	Ready    *bool           `json:"ready"`
 	Artifact json.RawMessage `json:"artifact_digest"`
+	Models   []string        `json:"models"`
 }
 
 func (h healthReport) result(ready bool) protocol.InstanceHealth {
@@ -40,7 +42,7 @@ func (w *Reconciler) ProbeInstance(ctx context.Context, cfg *config.Snapshot, ta
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	if backend, direct := cfg.NativeBackendFor(target.ModelKey, target.Endpoint); direct {
+	if backend, direct := cfg.NativeBackendFor(target.ModelKey, target.Endpoint); direct && !protocol.GenerationProtocol(target.Protocol) {
 		return w.nativeHealth(ctx, cfg, target, backend)
 	}
 	raw, err := w.modelCall(ctx, cfg, http.MethodGet, target.HealthURL, "", nil)
@@ -51,7 +53,11 @@ func (w *Reconciler) ProbeInstance(ctx context.Context, cfg *config.Snapshot, ta
 	if err := json.Unmarshal(raw, &health); err != nil {
 		return protocol.InstanceHealth{}, err
 	}
-	result := health.result(health.Ready != nil && *health.Ready)
+	ready := health.Ready != nil && *health.Ready
+	if protocol.GenerationProtocol(target.Protocol) {
+		ready = ready && slices.Contains(health.Models, target.ModelKey)
+	}
+	result := health.result(ready)
 	// 独立探针可报告健康，只有模型服务自身的响应能提供该实例的镜像摘要。
 	if target.HealthURL != target.Endpoint && !strings.HasPrefix(target.HealthURL, target.Endpoint+"/") {
 		result.ArtifactDigest = ""

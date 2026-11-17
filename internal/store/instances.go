@@ -1,7 +1,10 @@
 package store
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"reflect"
 	"slices"
 	"time"
 
@@ -9,6 +12,7 @@ import (
 	"github.com/wgdl666/modelGateway/ent/modelinstance"
 	"github.com/wgdl666/modelGateway/ent/request"
 	"github.com/wgdl666/modelGateway/ent/resourcegroup"
+	"github.com/wgdl666/modelGateway/internal/inputschema"
 	"github.com/wgdl666/modelGateway/internal/protocol"
 )
 
@@ -30,7 +34,10 @@ func instanceClearable(row *ent.ModelInstance, healthy bool) bool {
 
 // 排空实例退出探活集合，已派发任务仍按账本中的地址回查。
 func (s *Store) ProbeInstances(ctx context.Context) ([]*ent.ModelInstance, error) {
-	return s.db.ModelInstance.Query().Where(modelinstance.DeletedAtIsNil(), modelinstance.DrainingEQ(false)).All(ctx)
+	// 探活不使用模型 Schema，显式投影避免后台循环反复读取大 JSONB。
+	return s.db.ModelInstance.Query().Where(modelinstance.DeletedAtIsNil(), modelinstance.DrainingEQ(false)).
+		Select(modelinstance.FieldID, modelinstance.FieldModelKey, modelinstance.FieldProtocol,
+			modelinstance.FieldEndpoint, modelinstance.FieldHealthURL, modelinstance.FieldGpuDevices).All(ctx)
 }
 
 func (s *Store) Register(ctx context.Context, spec protocol.Instance, reportedArtifact string) error {
@@ -42,6 +49,39 @@ func (s *Store) Register(ctx context.Context, spec protocol.Instance, reportedAr
 		}
 		if conflict {
 			return ErrConflict
+		}
+		// 契约属于模型；新增实例沿用已登记定义，只有首次登记使用内置初始值。
+		existing, err := tx.ModelInstance.Query().Where(modelinstance.ModelKeyEQ(spec.ModelKey)).Select(modelinstance.FieldInputSchema).First(ctx)
+		if err != nil && !ent.IsNotFound(err) {
+			return err
+		}
+		if existing != nil {
+			if len(existing.InputSchema) == 0 {
+				return ErrInputSchemaMissing
+			}
+			if len(spec.InputSchema) > 0 {
+				var left, right any
+				decode := func(raw []byte, out *any) error {
+					decoder := json.NewDecoder(bytes.NewReader(raw))
+					decoder.UseNumber()
+					return decoder.Decode(out)
+				}
+				if decode(spec.InputSchema, &left) != nil || decode(existing.InputSchema, &right) != nil || !reflect.DeepEqual(left, right) {
+					return ErrConflict
+				}
+			}
+			spec.InputSchema = existing.InputSchema
+		} else if len(spec.InputSchema) == 0 {
+			if protocol.GenerationProtocol(spec.Protocol) {
+				return ErrInputSchemaMissing
+			}
+			spec.InputSchema, err = inputschema.Seed(spec.Protocol)
+			if err != nil {
+				return err
+			}
+		}
+		if err := inputschema.CheckDefinition(spec.InputSchema); err != nil {
+			return err
 		}
 		group, err := tx.ResourceGroup.Get(ctx, spec.ResourceGroup)
 		if ent.IsNotFound(err) {
@@ -123,7 +163,7 @@ func (s *Store) Register(ctx context.Context, spec protocol.Instance, reportedAr
 			artifact = reportedArtifact
 		}
 		return tx.ModelInstance.Create().
-			SetID(spec.ID).SetModelKey(spec.ModelKey).SetProtocol(spec.Protocol).
+			SetID(spec.ID).SetModelKey(spec.ModelKey).SetProtocol(spec.Protocol).SetInputSchema(spec.InputSchema).
 			SetEndpoint(spec.Endpoint).SetHealthURL(spec.HealthURL).SetArtifactDigest(artifact).
 			SetResourceGroup(spec.ResourceGroup).SetGroupCapacityUnits(group.CapacityUnits).
 			SetCapacityUnits(spec.Capacity).SetMachineID(spec.MachineID).SetGpuDevices(spec.GPUDevices).SetDraining(spec.InitiallyDraining).Exec(ctx)
@@ -187,16 +227,4 @@ func (s *Store) RecordProbe(ctx context.Context, id string, checked time.Time, r
 		modelinstance.UpdatedAtLTE(checked), modelinstance.HealthCheckedAtLT(checked),
 	).SetHealthCheckedAt(checked).SetReady(ready).Save(ctx)
 	return err
-}
-
-// ModelProtocol 从已有登记解析处理方式；实例暂时下线或被清除不抹掉模型契约。
-func (s *Store) ModelProtocol(ctx context.Context, model string) (string, error) {
-	row, err := s.db.ModelInstance.Query().Where(modelinstance.ModelKeyEQ(model)).Select(modelinstance.FieldProtocol).First(ctx)
-	if ent.IsNotFound(err) {
-		return "", ErrModelUnregistered
-	}
-	if err != nil {
-		return "", err
-	}
-	return row.Protocol, nil
 }

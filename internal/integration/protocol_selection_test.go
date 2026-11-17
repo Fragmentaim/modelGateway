@@ -39,8 +39,8 @@ func TestMattingSelectsRegisteredProtocolWithinSubmission(t *testing.T) {
 			registerReady(t, ledger, spec)
 			expectedPath, expectedMethod, expectedPreprocess = "/_dispatch/6106/segment-person/api"+tc.path, tc.method, tc.preprocess
 			id := uuid.NewString()
-			resp := sendSynchronous(t, base, "/v1/vision/segment-person/api/matte", "application/json",
-				`{"image":"aW1hZ2U=","output":"b64","method":"fallback","person_method":"person-algorithm","subject_method":"subject-algorithm"}`, id, tc.model)
+			resp := sendSynchronous(t, base, "/v1/gateway/requests/"+tc.model, "application/json",
+				`{"input":{"image":"aW1hZ2U=","output":"b64","method":"fallback","person_method":"person-algorithm","subject_method":"subject-algorithm"}}`, id)
 			raw, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			if resp.StatusCode != 200 || string(raw) != `{"refined_png_b64":"cG5n"}` {
@@ -81,13 +81,32 @@ func TestDecisionUsesTextSubmissionWithoutProtocolLookup(t *testing.T) {
 	spec.ModelKey = "registered-decision-v2"
 	spec.HealthURL = cfg.SynchronousHealthURL(spec.Protocol)
 	registerReady(t, ledger, spec)
+	for _, input := range []string{
+		`{"model_traits":{"task":"image_type"},"messages":[{"role":"user","content":"classify"}]}`,
+		`{"model_traits":{"task":"image_type"},"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"https://private/image.png"}}]}]}`,
+		`{"model_traits":{"task":"image_type"},"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBORw0KGgo="}},{"type":"text","text":"classify"}]}]}`,
+		`{"model_traits":{"task":"image_type"},"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:application/octet-stream;base64,` + strings.Repeat("PRIVATE_IMAGE_DATA_", 1024) + `"}}]}]}`,
+	} {
+		resp := sendSynchronous(t, base, "/v1/gateway/requests/"+spec.ModelKey, "application/json", `{"input":`+input+`}`, uuid.NewString())
+		raw, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(raw), "invalid_input") {
+			t.Fatalf("Decision schema did not reject input: %d %s", resp.StatusCode, raw)
+		}
+		if strings.Contains(string(raw), "PRIVATE_IMAGE_DATA_") || len(raw) > 4096 {
+			t.Fatalf("schema error echoed input values: %d bytes", len(raw))
+		}
+	}
+	if count, err := db.Request.Query().Count(t.Context()); err != nil || count != 0 {
+		t.Fatalf("invalid Decision input reached admission: count=%d err=%v", count, err)
+	}
 	for _, stream := range []bool{false, true} {
 		body, _ := json.Marshal(map[string]any{
-			"model": spec.ModelKey, "stream": stream, "model_traits": map[string]string{"task": "image_type"},
+			"stream": stream, "model_traits": map[string]string{"task": "image_type"},
 			"messages": []any{map[string]any{"role": "user", "content": []any{map[string]any{"type": "image_url", "image_url": map[string]string{"url": "data:image/png;base64,iVBORw0KGgo="}}}}},
 		})
 		id := uuid.NewString()
-		resp := sendSynchronous(t, base, "/v1/chat/completions", "application/json", string(body), id)
+		resp := sendSynchronous(t, base, "/v1/gateway/requests/"+spec.ModelKey, "application/json", `{"input":`+string(body)+`}`, id)
 		raw, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 		if resp.StatusCode != 200 {
@@ -116,8 +135,8 @@ func TestDecisionUsesTextSubmissionWithoutProtocolLookup(t *testing.T) {
 	// HTTP 200 的坏分类也必须收敛为失败并释放占用，不能只在 ModelHub 返回错误。
 	response = `{"prediction":{"label":"shirt"}}`
 	id := uuid.NewString()
-	resp := sendSynchronous(t, base, "/v1/chat/completions", "application/json",
-		`{"model":"registered-decision-v2","model_traits":{"task":"image_type"},"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBORw0KGgo="}}]}]}`, id)
+	resp := sendSynchronous(t, base, "/v1/gateway/requests/"+spec.ModelKey, "application/json",
+		`{"input":{"model_traits":{"task":"image_type"},"messages":[{"role":"user","content":[{"type":"image_url","image_url":{"url":"data:image/png;base64,iVBORw0KGgo="}}]}]}}`, id)
 	io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadGateway {

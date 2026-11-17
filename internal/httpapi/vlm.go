@@ -45,13 +45,13 @@ func (s *Server) chatCompletions(ctx context.Context, c *app.RequestContext) {
 			return
 		}
 		// 对话和分类共用一次文本请求，具体编码由已登记协议决定，不要求 ModelHub 预查询。
-		form, contentType, stream, err := prepareDecisionChat(fields)
+		form, contentType, stream, err := prepareLegacyDecisionChat(fields)
 		if err != nil {
 			writeError(c, 400, "invalid_input", err.Error(), "")
 			return
 		}
 		c.Set(decisionChatStreamKey, stream)
-		s.forwardSynchronous(ctx, c, s.direct, model, kind, "/v1/predict", contentType, form)
+		s.forwardLegacySynchronous(ctx, c, s.direct, model, kind, "/v1/predict", contentType, form)
 		return
 	}
 	if kind != protocol.ChatProtocol {
@@ -67,5 +67,5 @@ func (s *Server) chatCompletions(ctx context.Context, c *app.RequestContext) {
 		delete(fields, "model_traits")
 		body, _ = json.Marshal(fields)
 	}
-	s.forwardSynchronous(ctx, c, s.direct, model, kind, chatCompletionsPath, "application/json", body)
+	s.forwardLegacySynchronous(ctx, c, s.direct, model, kind, chatCompletionsPath, "application/json", body)
 }

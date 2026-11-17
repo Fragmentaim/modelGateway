@@ -54,5 +54,5 @@ func (s *Server) decisionPredict(ctx context.Context, c *app.RequestContext) {
 		writeError(c, 400, "invalid_protocol", "model does not use the decision protocol", "")
 		return
 	}
-	s.forwardSynchronous(ctx, c, s.direct, model, kind, "/v1/predict", contentType, body)
+	s.forwardLegacySynchronous(ctx, c, s.direct, model, kind, "/v1/predict", contentType, body)
 }

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "body_model",
+  "description": "体模生成：一张人物图",
+  "x-category": "image_generation",
+  "type": "object",
+  "properties": {
+    "images": {
+      "type": "array",
+      "description": "体模生成：一张人物图",
+      "items": {
+        "type": "object",
+        "required": [
+          "mime_type",
+          "data"
+        ],
+        "properties": {
+          "mime_type": {
+            "type": "string",
+            "description": "图片 MIME",
+            "pattern": "^image/[A-Za-z0-9.+-]+$"
+          },
+          "data": {
+            "type": "string",
+            "description": "图片原始字节的 Base64，不含 data URL 前缀",
+            "minLength": 1,
+            "contentEncoding": "base64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "gender": {
+      "type": "string",
+      "description": "原样交给模型服务的性别参数",
+      "enum": [
+        "male",
+        "female",
+        "unknown"
+      ]
+    }
+  },
+  "required": [
+    "images",
+    "gender"
+  ],
+  "additionalProperties": false,
+  "x-experimental-properties": {
+    "prompt": {
+      "type": "string",
+      "description": "仅实验凭据可覆盖的生成参数",
+      "maxLength": 4096,
+      "pattern": "[^\\t\\n\\v\\f\\r \\x1c-\\x1f\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]",
+      "not": {
+        "pattern": "\\x00"
+      }
+    }
+  }
+}

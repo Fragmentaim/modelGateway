@@ -1,0 +1,620 @@
+{
+  "date": "2026-11-17",
+  "source": "c96e5cc4334f5896b65fc5e949eeb742f5c452d0",
+  "runtime_base_source": "d3f8ffa2ca7db307da60815795237018349f9e2e",
+  "gateway_source": "8c9fbfc50b88037ca1e172222ce69db43e2f7a7b",
+  "image_pe_sha256": "21437c17aeeb9461488bfac540f4011820521ae362f9960b8fa9ac748f838953",
+  "flux_image": "sha256:629dd98c81fd5676f80dd3c0ccdebcf2fbefd051b26c042177cdec067e0c85b8",
+  "config_change": {
+    "template_version": "garment-v3",
+    "old_system_prompt_path": "/app/deploy/qwen_pe/garment_system_prompt.txt",
+    "new_system_prompt_path": "/app/deploy/qwen_pe/garment_system_prompt_v3.txt"
+  },
+  "input_sha256": {
+    "person": "eb02a68ba73491e66dd24868884c2ff0d688e63ca6839b0426f8311d7978bf98",
+    "garment": "6dbd4e6349b1d5b3fd2da5df16ad07d21120e039b917beaaffbfa5011913a058",
+    "cloth": "0bdbd9b489775693d4882a124623e66312577c3eac9d7a22745de06889fcd919"
+  },
+  "before_code_fix": [
+    {
+      "case": "product",
+      "request_id": "53a68e64-dc13-4838-9332-e6b2af2e54fb",
+      "instance_id": "candidate-gpu2-2",
+      "model": "Vmind_cloth_gen_v1.0",
+      "fields": {
+        "garment_name": "切尔西靴",
+        "garment_role": "shoes"
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 1,
+            "last_reason": "ValueError"
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/FLUX.2-klein-9B-VTOFF-R3-SFT-20261108",
+          "revision": "c05f41471a987ed1e7d70c4ab1fec87c8f531f77",
+          "sha256": "adb1df7eaac5d45720b285e138c3cbbbb691919159e6a6155d7b9aff69474ad8"
+        },
+        "pe_status": "fallback",
+        "pe_fallback_reason": "PE feature fields are missing, duplicated or invalid",
+        "parameters": {
+          "seed": 4226815437,
+          "width": 1024,
+          "height": 1024,
+          "steps": 4,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.722,
+          "pe_ms": 5098.398,
+          "inference_ms": 2186.981,
+          "total_ms": 7427.664,
+          "gateway_queue_ms": 36.965,
+          "gateway_total_ms": 7514.037708
+        },
+        "effective_prompt_sha256": "8bdd399ac0fb82358515b1dda5f4f93d1a230b45610fe35c792c77eeda87b113"
+      },
+      "media": {
+        "size": [
+          1024,
+          1024
+        ],
+        "mode": "RGB",
+        "sha256": "3ccd68db856d2906e251f4921bf7fdeaa9c28829d1a0855ce722408c4127fdab",
+        "bytes": 1375787
+      },
+      "require_pe_exit": 1
+    },
+    {
+      "case": "product",
+      "request_id": "19c9c07e-af15-493c-901a-1c5db70ad02b",
+      "instance_id": "candidate-gpu2-2",
+      "model": "Vmind_cloth_gen_v1.0",
+      "fields": {
+        "garment_name": "切尔西靴",
+        "garment_role": "shoes"
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 1,
+            "last_reason": "ValueError"
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/FLUX.2-klein-9B-VTOFF-R3-SFT-20261108",
+          "revision": "c05f41471a987ed1e7d70c4ab1fec87c8f531f77",
+          "sha256": "adb1df7eaac5d45720b285e138c3cbbbb691919159e6a6155d7b9aff69474ad8"
+        },
+        "pe_status": "fallback",
+        "pe_fallback_reason": "PE feature fields are missing, duplicated or invalid",
+        "parameters": {
+          "seed": 2511684801,
+          "width": 1024,
+          "height": 1024,
+          "steps": 4,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.741,
+          "pe_ms": 4895.536,
+          "inference_ms": 1891.166,
+          "total_ms": 7021.925,
+          "gateway_queue_ms": 7553.254,
+          "gateway_total_ms": 14624.922392
+        },
+        "effective_prompt_sha256": "8bdd399ac0fb82358515b1dda5f4f93d1a230b45610fe35c792c77eeda87b113"
+      },
+      "media": {
+        "size": [
+          1024,
+          1024
+        ],
+        "mode": "RGB",
+        "sha256": "c45153c7672bf4bdbb33c93b1d1862d7a3f07c85c76f8450553f15e56d9b2aeb",
+        "bytes": 1526948
+      },
+      "require_pe_exit": 1
+    }
+  ],
+  "after": [
+    {
+      "case": "product",
+      "request_id": "30c9c94a-83a5-41e3-ab3f-ff567699385b",
+      "instance_id": "candidate-gpu2-2",
+      "model": "Vmind_cloth_gen_v1.0",
+      "fields": {
+        "garment_name": "切尔西靴",
+        "garment_role": "shoes"
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/FLUX.2-klein-9B-VTOFF-R3-SFT-20261108",
+          "revision": "c05f41471a987ed1e7d70c4ab1fec87c8f531f77",
+          "sha256": "adb1df7eaac5d45720b285e138c3cbbbb691919159e6a6155d7b9aff69474ad8"
+        },
+        "pe_status": "applied",
+        "parameters": {
+          "seed": 2862061325,
+          "width": 1024,
+          "height": 1024,
+          "steps": 4,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.63,
+          "pe_ms": 1729.882,
+          "inference_ms": 1884.945,
+          "total_ms": 3856.206,
+          "gateway_queue_ms": 4546.829,
+          "gateway_total_ms": 8449.686382
+        },
+        "effective_prompt_sha256": "ed51f65de3094c3730016e6f70bb49ee76917ac5faa3658658e6db2418fa7594"
+      },
+      "media": {
+        "size": [
+          1024,
+          1024
+        ],
+        "mode": "RGB",
+        "sha256": "b069ed7ec37aba52312b8565b489609835d67c4ab3755d9c45208fb7f5b2de68",
+        "bytes": 1547468
+      },
+      "require_pe_exit": 0
+    },
+    {
+      "case": "product",
+      "request_id": "91ade6bc-c653-485b-baa3-b8474c4699c2",
+      "instance_id": "candidate-gpu2-2",
+      "model": "Vmind_cloth_gen_v1.0",
+      "fields": {
+        "garment_name": "切尔西靴",
+        "garment_role": "shoes"
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/FLUX.2-klein-9B-VTOFF-R3-SFT-20261108",
+          "revision": "c05f41471a987ed1e7d70c4ab1fec87c8f531f77",
+          "sha256": "adb1df7eaac5d45720b285e138c3cbbbb691919159e6a6155d7b9aff69474ad8"
+        },
+        "pe_status": "applied",
+        "parameters": {
+          "seed": 2441575076,
+          "width": 1024,
+          "height": 1024,
+          "steps": 4,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.646,
+          "pe_ms": 1732.413,
+          "inference_ms": 2115.909,
+          "total_ms": 4061.945,
+          "gateway_queue_ms": 35.555,
+          "gateway_total_ms": 4146.782531
+        },
+        "effective_prompt_sha256": "ed51f65de3094c3730016e6f70bb49ee76917ac5faa3658658e6db2418fa7594"
+      },
+      "media": {
+        "size": [
+          1024,
+          1024
+        ],
+        "mode": "RGB",
+        "sha256": "6a7bb580f9be678ae2819c823d5338dac9328022a7b5cecda64088c2aca3a756",
+        "bytes": 1464289
+      },
+      "require_pe_exit": 0
+    },
+    {
+      "case": "wardrobe",
+      "request_id": "e3aa3020-de9f-4dce-b5fe-9a7e3792e201",
+      "instance_id": "candidate-gpu2-3",
+      "model": "Vmind_wardrobe_v1.0",
+      "fields": {
+        "garment_name": "短袖圆领T恤",
+        "garment_role": "clothing::top/full",
+        "bbox": [
+          0.39,
+          0.38,
+          0.59,
+          0.61
+        ],
+        "bbox_format": "normalized_xyxy"
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/FLUX.2-klein-9B-VTOFF-R3-SFT-20261108",
+          "revision": "c05f41471a987ed1e7d70c4ab1fec87c8f531f77",
+          "sha256": "adb1df7eaac5d45720b285e138c3cbbbb691919159e6a6155d7b9aff69474ad8"
+        },
+        "pe_status": "applied",
+        "parameters": {
+          "seed": 620649293,
+          "width": 1024,
+          "height": 1024,
+          "steps": 4,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.615,
+          "pe_ms": 1773.79,
+          "inference_ms": 1989.635,
+          "total_ms": 3996.762,
+          "gateway_queue_ms": 4537.794,
+          "gateway_total_ms": 8575.011846
+        },
+        "effective_prompt_sha256": "63c06ef21db77578c0aaca8813eab1523a390c9055f31d6d4139f9fd1198fec8"
+      },
+      "media": {
+        "size": [
+          1024,
+          1024
+        ],
+        "mode": "RGB",
+        "sha256": "a6c469a503d7a136640bb7b27e3e7ab7c5bb25e12d45d081e89c6aa8d623bcd4",
+        "bytes": 1444544
+      },
+      "require_pe_exit": 0
+    },
+    {
+      "case": "wardrobe",
+      "request_id": "7dfe3b6d-7ee6-48f0-9c21-ef0fe303d10a",
+      "instance_id": "candidate-gpu2-3",
+      "model": "Vmind_wardrobe_v1.0",
+      "fields": {
+        "garment_name": "短袖圆领T恤",
+        "garment_role": "clothing::top/full",
+        "bbox": [
+          0.39,
+          0.38,
+          0.59,
+          0.61
+        ],
+        "bbox_format": "normalized_xyxy"
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/FLUX.2-klein-9B-VTOFF-R3-SFT-20261108",
+          "revision": "c05f41471a987ed1e7d70c4ab1fec87c8f531f77",
+          "sha256": "adb1df7eaac5d45720b285e138c3cbbbb691919159e6a6155d7b9aff69474ad8"
+        },
+        "pe_status": "applied",
+        "parameters": {
+          "seed": 342932167,
+          "width": 1024,
+          "height": 1024,
+          "steps": 4,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.714,
+          "pe_ms": 1851.949,
+          "inference_ms": 2044.858,
+          "total_ms": 4277.195,
+          "gateway_queue_ms": 23.92,
+          "gateway_total_ms": 4342.533883
+        },
+        "effective_prompt_sha256": "63c06ef21db77578c0aaca8813eab1523a390c9055f31d6d4139f9fd1198fec8"
+      },
+      "media": {
+        "size": [
+          1024,
+          1024
+        ],
+        "mode": "RGB",
+        "sha256": "2ef4f06cbef2274aa39c597f74f70cba5d7b621485a1fb6291b14257a81c54ca",
+        "bytes": 1485917
+      },
+      "require_pe_exit": 0
+    },
+    {
+      "case": "vton-grid",
+      "request_id": "94d34878-962b-46e3-b32f-dcaac048eedd",
+      "instance_id": "candidate-gpu2-1",
+      "model": "Vmind_outfit_v1.0",
+      "fields": {
+        "prompt": "图2只有一行两列服装，第1行第1列是运动拉链外套；第1行第2列是运动短裤。让图1人物穿上图2的两件服装，外套拉链拉好，保持人物姿势。"
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/Qwen-Image-2.1-VTON-AdaptiveCaption-SFT-20261108",
+          "revision": "4c1d9e4a74d9ac75a110737cee311a5e92f32766"
+        },
+        "pe_status": "applied",
+        "parameters": {
+          "seed": 3148841214,
+          "width": 1024,
+          "height": 1536,
+          "steps": 8,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.000583939254283905,
+          "pe_ms": 927.4064642377198,
+          "inference_ms": 7314.236,
+          "total_ms": 8433.453714940697,
+          "gateway_queue_ms": 127.64,
+          "gateway_total_ms": 8880.529799
+        },
+        "effective_prompt_sha256": "f11dfaf4b1fce1e086f6c5d004a218d3e833ab397816083456e2d97494d2a2d0"
+      },
+      "media": {
+        "size": [
+          1024,
+          1536
+        ],
+        "mode": "RGB",
+        "sha256": "8e4fcc5a62ad571e26080b5a726f774a339ddeeac58def1a14a0a00af7e8569f",
+        "bytes": 391999
+      },
+      "require_pe_exit": 0
+    },
+    {
+      "case": "vton-grid",
+      "request_id": "654eab52-dade-4ea7-8e54-525c675df256",
+      "instance_id": "candidate-gpu2-1",
+      "model": "Vmind_outfit_v1.0",
+      "fields": {
+        "prompt": "图2只有一行两列服装，第1行第1列是运动拉链外套；第1行第2列是运动短裤。让图1人物穿上图2的两件服装，外套拉链拉好，保持人物姿势。"
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/Qwen-Image-2.1-VTON-AdaptiveCaption-SFT-20261108",
+          "revision": "4c1d9e4a74d9ac75a110737cee311a5e92f32766"
+        },
+        "pe_status": "applied",
+        "parameters": {
+          "seed": 4046695989,
+          "width": 1024,
+          "height": 1536,
+          "steps": 8,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.0007133930921554565,
+          "pe_ms": 826.096132863313,
+          "inference_ms": 6709.006,
+          "total_ms": 7732.082908973098,
+          "gateway_queue_ms": 9111.202,
+          "gateway_total_ms": 17130.167144
+        },
+        "effective_prompt_sha256": "f11dfaf4b1fce1e086f6c5d004a218d3e833ab397816083456e2d97494d2a2d0"
+      },
+      "media": {
+        "size": [
+          1024,
+          1536
+        ],
+        "mode": "RGB",
+        "sha256": "18cbff81bd4ba5948dbdf79540a55c4a8fc82dc2925e9fec61e28ccbf3b39568",
+        "bytes": 345956
+      },
+      "require_pe_exit": 0
+    }
+  ],
+  "tests": {
+    "business_cpu": 146,
+    "registration_acceptance": 14,
+    "strict_pe_gpu": 6,
+    "prompt_assets_build_context": true
+  },
+  "comparison_limits": [
+    "Business API chooses random generation seeds; old/new images are functional evidence, not a controlled image-quality benchmark.",
+    "All tests use isolated Gateway/PG/MQ and a local object-store fixture; production Gateway, real S3 and Hub rollout are not covered.",
+    "VTON code is unchanged: explicit inventory selects compact PE; ordinary prompts still use the legacy PE fallback."
+  ],
+  "restoration": {
+    "instances": [
+      {
+        "id": "519eeb3d3b5045d9a228147d9455768f",
+        "model_key": "Vmind_bodymodel_v1.0",
+        "resource_group": "g7e/gpu2",
+        "healthy": true,
+        "eligible": true,
+        "draining": null,
+        "reserved_requests": 0
+      },
+      {
+        "id": "vmind-3dd0cef3-c45b-421d-8e11-a104bb9e0a55",
+        "model_key": "Vmind_wardrobe_v1.0",
+        "resource_group": "g7e/gpu2",
+        "healthy": true,
+        "eligible": true,
+        "draining": null,
+        "reserved_requests": 0
+      },
+      {
+        "id": "g7e-gpu0-video",
+        "model_key": "Vmind_outfit_video_v1.0",
+        "resource_group": "g7e/gpu0",
+        "healthy": true,
+        "eligible": true,
+        "draining": null,
+        "reserved_requests": 0
+      },
+      {
+        "id": "vmind-a9a15008-bff6-4ac6-bf15-e2376c928155",
+        "model_key": "Vmind_wardrobe_v1.0",
+        "resource_group": "g7e/gpu3",
+        "healthy": true,
+        "eligible": true,
+        "draining": null,
+        "reserved_requests": 0
+      },
+      {
+        "id": "vmind-e7073153-37f2-4ab2-ad86-b8c1a012af2a",
+        "model_key": "Vmind_bodymodel_v1.0",
+        "resource_group": "g7e/gpu3",
+        "healthy": true,
+        "eligible": true,
+        "draining": null,
+        "reserved_requests": 0
+      },
+      {
+        "id": "g7e-gpu2-qwen-vton-20261108",
+        "model_key": "Vmind_outfit_v1.0",
+        "resource_group": "g7e/gpu2",
+        "healthy": true,
+        "eligible": true,
+        "draining": null,
+        "reserved_requests": 0
+      },
+      {
+        "id": "g7e-gpu2-cloth",
+        "model_key": "Vmind_cloth_gen_v1.0",
+        "resource_group": "g7e/gpu2",
+        "healthy": true,
+        "eligible": true,
+        "draining": null,
+        "reserved_requests": 0
+      },
+      {
+        "id": "g7e-gpu3-cloth",
+        "model_key": "Vmind_cloth_gen_v1.0",
+        "resource_group": "g7e/gpu3",
+        "healthy": true,
+        "eligible": true,
+        "draining": null,
+        "reserved_requests": 1
+      },
+      {
+        "id": "g7e-gpu1-video",
+        "model_key": "Vmind_outfit_video_v1.0",
+        "resource_group": "g7e/gpu1",
+        "healthy": true,
+        "eligible": true,
+        "draining": null,
+        "reserved_requests": 0
+      },
+      {
+        "id": "g7e-gpu3-qwen-vton-20261108",
+        "model_key": "Vmind_outfit_v1.0",
+        "resource_group": "g7e/gpu3",
+        "healthy": true,
+        "eligible": true,
+        "draining": null,
+        "reserved_requests": 0
+      }
+    ],
+    "container_verification": [
+      {
+        "name": "/vmind-qwen-a-qwen-a-1",
+        "same_image": true,
+        "same_env": true,
+        "running": true,
+        "health": "healthy"
+      },
+      {
+        "name": "/vmind-g7e-flux2-1",
+        "same_image": true,
+        "same_env": true,
+        "running": true,
+        "health": "healthy"
+      },
+      {
+        "name": "/vmind-exhibition-qwen-vton-gpu2-1",
+        "same_image": true,
+        "same_env": true,
+        "running": true,
+        "health": "healthy"
+      },
+      {
+        "name": "/vmind-video",
+        "same_image": true,
+        "same_env": true,
+        "running": true,
+        "health": "healthy"
+      }
+    ],
+    "owned_candidates_removed": true
+  }
+}

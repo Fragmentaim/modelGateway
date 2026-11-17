@@ -16,9 +16,9 @@ func TestUnifiedImageInputUsesRegisteredProtocol(t *testing.T) {
 	}{
 		{name: "tryon", kind: OutfitProtocol, text: " preserve prompt ", count: 2, want: map[string]any{"prompt": " preserve prompt "}},
 		{name: "body", kind: BodyProtocol, text: "ignored business prompt", traits: `{"gender":"female"}`, count: 1, want: map[string]any{"gender": "female"}},
-		{name: "garment", kind: WardrobeProtocol, text: `{"garment_name":"shirt","garment_role":"tops","bbox":[1,2,3,4],"bbox_format":"xyxy"}`, count: 1,
-			want: map[string]any{"garment_name": "shirt", "garment_role": "tops", "bbox": []any{float64(1), float64(2), float64(3), float64(4)}, "bbox_format": "xyxy"}},
-		{name: "mask", kind: WardrobeProtocol, text: `{"garment_name":"shirt","parse_labels":{}}`, count: 2, want: map[string]any{"garment_name": "shirt", "parse_labels": map[string]any{}}},
+		{name: "garment", kind: WardrobeProtocol, text: `{"garment_name":"shirt","garment_role":"clothing::top/full","bbox":[1,2,3,4],"bbox_format":"pixel_xyxy"}`, count: 1,
+			want: map[string]any{"garment_name": "shirt", "garment_role": "clothing::top/full", "bbox": []any{float64(1), float64(2), float64(3), float64(4)}, "bbox_format": "pixel_xyxy"}},
+		{name: "mask", kind: WardrobeProtocol, text: `{"garment_name":"shirt","garment_role":"clothing::top/full","parse_labels":{"4":"Upper-clothes"}}`, count: 2, want: map[string]any{"garment_name": "shirt", "garment_role": "clothing::top/full", "parse_labels": map[string]any{"4": "Upper-clothes"}}},
 		{name: "product", kind: ClothGenProtocol, text: `{"garment_name":"shirt"}`, count: 1, want: map[string]any{"garment_name": "shirt"}},
 		{name: "missing extraction region", kind: WardrobeProtocol, text: `{"garment_name":"shirt"}`, count: 1, invalid: true},
 		{name: "wrong image count", kind: OutfitProtocol, text: "try on", count: 1, invalid: true},

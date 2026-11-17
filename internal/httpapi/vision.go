@@ -128,7 +128,7 @@ func (s *Server) visionPredict(route visionRoute) app.HandlerFunc {
 			writeError(c, 400, "invalid_protocol", "model protocol does not match this vision route", "")
 			return
 		}
-		s.forwardSynchronous(ctx, c, client, model, kind, targetPath, contentType, body)
+		s.forwardLegacySynchronous(ctx, c, client, model, kind, targetPath, contentType, body)
 	}
 }
 

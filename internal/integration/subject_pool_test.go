@@ -134,7 +134,7 @@ func TestSubjectPoolHTTPRegistrationAndUnknown504(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := uuid.NewString()
-	resp := sendSynchronous(t, base, "/v1/vision/segment-person/api/segment_subject", "multipart/form-data; boundary=fixture", "--fixture\r\nContent-Disposition: form-data; name=\"image\"\r\n\r\naW1hZ2U=\r\n--fixture--\r\n", id, protocol.SegmentSubjectModel)
+	resp := sendSynchronous(t, base, "/v1/gateway/requests/"+protocol.SegmentSubjectModel, "application/json", `{"input":{"image":"aW1hZ2U="}}`, id)
 	_, err = io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil || resp.StatusCode != 504 {
@@ -155,7 +155,7 @@ func TestSubjectPoolHTTPRegistrationAndUnknown504(t *testing.T) {
 	legacy.MachineID = "old-host"
 	registerReady(t, a, legacy)
 	legacyID := uuid.NewString()
-	legacyResp := sendSynchronous(t, base, "/v1/vision/segment-person/api/segment_subject", "multipart/form-data; boundary=fixture", "--fixture\r\nContent-Disposition: form-data; name=\"image\"\r\n\r\naW1hZ2U=\r\n--fixture--\r\n", legacyID, protocol.SegmentSubjectModel)
+	legacyResp := sendSynchronous(t, base, "/v1/gateway/requests/"+protocol.SegmentSubjectModel, "application/json", `{"input":{"image":"aW1hZ2U="}}`, legacyID)
 	_, err = io.ReadAll(legacyResp.Body)
 	legacyResp.Body.Close()
 	if err != nil || legacyResp.StatusCode != 200 {

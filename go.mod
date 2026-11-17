@@ -14,6 +14,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/nacos-group/nacos-sdk-go/v2 v2.3.5
 	github.com/rabbitmq/amqp091-go v1.10.0
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/wgdl666/kangaroo/bizerr v0.0.0-20260805125009-85ddf2d025e0
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/log v0.15.0
@@ -139,3 +140,6 @@ require (
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+// Pin the minimal string-allocation fix until available upstream.
+replace github.com/santhosh-tekuri/jsonschema/v6 => github.com/Fragmentaim/jsonschema/v6 v6.0.3-0.20261116093456-32495a5894a5

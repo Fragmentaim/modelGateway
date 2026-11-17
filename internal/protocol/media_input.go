@@ -5,7 +5,8 @@ import (
 	"errors"
 )
 
-// NormalizeMediaInput 在网关内把 ModelHub 的统一输入转换为已登记协议的业务字段。
+// NormalizeMediaInput 仅为滚动发布兼容旧 ModelHub 图片信封。
+// 新调用方提交规范字段；兼容展开后仍执行同一数据库 Schema 校验。
 // 原有直接调用仍可提交扁平字段；落队列的始终是同一份原生输入，派发与重放无需再分支。
 func NormalizeMediaInput(kind string, input json.RawMessage) (json.RawMessage, error) {
 	var source map[string]json.RawMessage

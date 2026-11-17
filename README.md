@@ -2,13 +2,47 @@
 
 一个模型网关可运行多个 Go 副本，共享 PostgreSQL 和 RabbitMQ。Hertz 处理 HTTP，Ent 定义 `resource_groups`、`model_instances` 和 `requests`。每个副本启动两个 RabbitMQ 消费者。模型执行端确认终态并上传成品，ModelHub 使用 OSS/S3 对象引用读取。
 
-## 调用协议
+## 通用图像和视频生成
 
-生成接口为 `POST /v1/gateway/requests/{model_key}`。请求使用 `Authorization: Bearer <api_token>`、`Content-Type: application/json` 和 UUID `Idempotency-Key`。UUID 同时是请求表主键和模型端查询 ID。
+- 图像：`POST /v1/images/generations`，JSON 输入；`POST /v1/images/edits` 为参考图 multipart 上传入口。
+- 视频：`POST /v1/videos`，独立的视频输入协议；通过 `GET /v1/videos/{id}` 查询、`GET /v1/videos/{id}/content` 下载。
+- `model` 直接选择登记模型，`prompt`、参考图和生成参数传给模型服务。网关不提供专家或业务能力，也不绑定模型名、画布或业务提示词。
+- 模型登记为 `image_generation` / `video_generation` 后，Worker 直接调用对应的通用模型接口。新增兼容模型只需登记，无需修改路由代码。
+
+请求示例、后端契约、注册和迁移要求见 [通用生成接口](docs/GENERATION_API.md)。
+
+## 兼容调用协议
+
+统一调用入口为 `POST /v1/gateway/requests/{model_key}`，承接图片、视频、对话和视觉模型。请求使用 `Authorization: Bearer <api_token>`、`Content-Type: application/json` 和 UUID `Idempotency-Key`。UUID 同时是请求表主键和模型端查询 ID。
 
 请求体包含 `input` 和可选的 `metadata`。图片按顺序放入 `input.images`，每项为 `mime_type` 和 base64 `data`。同一键和相同业务输入复用原任务，改模型或业务输入返回 409。追踪字段变化不改变任务身份。
 
+### 模型目录和 JSON Schema
+
+调用前用 API 凭据读取 `GET /v1/models?category=image_generation`（category 可省略），目录按模型键去重，不返回实例数量。`GET /v1/models/{model_key}` 返回 `model_key`、`protocol`、`category`、`description`、`response_mode` 和完整 `input_schema`。
+
+`model_instances.input_schema` 是 JSONB，保存完整 JSON Schema 2020-12。定义包含字段、类型、必填项、图片顺序和数量；运行时由 JSON Schema 库校验，再由已有适配器编码并派发。`protocol` 继续选择内部编码与执行方式，实例 `endpoint` 继续决定执行地址，调用方不选择内部路径。
+
+媒体 input 直接使用模型 Schema 的字段，例如 VTON 的 `images`/`prompt`、拆衣的 `garment_name`/`bbox`/`parse_labels`、体模的 `gender`。不再接受 `text`/`model_traits` 兼容信封；protobuf 转换由 ModelHub 完成。Decision Schema 约束恰好一张内联图片、消息内容类型、预设 task 与用户问题互斥，以及 options 仅供自定义问题使用；执行适配器只解码图片、识别真实格式并编码模型表单。
+
+字段不符合 Schema 时返回 HTTP 400、`error.code=invalid_input`。`error.message` 只提供输入字段的 JSON Pointer 和 Schema 规则关键字，不回显图片或其他输入值；根对象的 Pointer 为空字符串。客户端按 HTTP 状态和 `error.code` 判断结果，message 用于诊断。
+
+同模型多个实例保留重复 schema。管理凭据调用 `PUT /v1/admin/models/{model_key}/schema`，请求 `{"input_schema":{...}}`，在一个事务里更新该模型全部登记；新副本继承已有定义，不按协议重置。业务协议首次登记可提交 input_schema，省略时使用协议种子；`image_generation` / `video_generation` 首次登记必须显式提交模型 Schema。定义只允许文档内部 `$ref`，不加载远程或本机文件。
+
+**发布前先执行 [input_schema 迁移](deploy/migrations/model-input-schema.sql)**，回填已有 13 种协议的初始契约；已有自定义定义不会被覆盖。种子用于迁移和首次登记，运行时缺少定义返回 503。`x-category` 提供目录类别；`x-experimental-properties` 只对实验凭据展开，对外 schema 与当前凭据实际校验规则一致。
+
+对话 input 使用 OpenAI-compatible JSON（模型由路径指定），响应仍是原生 JSON/SSE；视觉 input 使用 JSON 和 Base64 内联图片，由 Gateway 编码成上游 multipart/JSON，响应保持原生 JSON/图片。OpenAI-compatible 种子保留扩展字段，具体模型的参数支持范围可由管理员在模型定义中收紧；schema 通过不替代上游模型的语义校验。媒体生成仍使用下面的任务结果格式。生成整合阶段继续保留 `/v1/chat/completions`、`/v1/vision/...` 和 `/v1/decision/predict`，沿用原鉴权、上传限制、实例路由与账本。视觉/对话调用方的迁移及旧入口删除另行发布。
+
 每个 `model_key` 固定对应一种业务。输入校验、实例匹配和后端路由使用同一个键。业务含义变化时使用新键。
+
+接入方按以下顺序适配：
+
+1. 使用目标环境的 API Bearer Token 调用 `GET /v1/models` 选择模型，再用 `GET /v1/models/{model_key}` 读取该环境的完整定义。
+2. 按 `input_schema` 构造 JSON，携带 UUID `Idempotency-Key` 调用 `POST /v1/gateway/requests/{model_key}`，请求体为 `{"input":{...}}`。图片字段、顺序和数量以查询到的定义为准。
+3. 读取定义的 `response_mode`：`direct` 返回模型原生 JSON/图片，聊天 `stream=true` 时返回 SSE；`task` 使用图片同步任务结果或视频 202+查询。任务查询使用 `GET /v1/gateway/requests` 和原 UUID，结果在 `result.files`，文件可通过带 API 凭据的 `GET /v1/admin/requests/{request_id}/media?kind=output&index=0` 读取。
+4. 联调环境先完成本版本部署、Schema 迁移和实例登记；保留旧固定推理入口，并兼容生产 ModelHub 的图片 `text` / `model_traits` 信封：只展开已知四种业务图像协议，转换后仍执行同一份数据库 Schema 校验。新调用方应发送规范字段，不混合新旧格式。请求限制针对编码后的整个 JSON，Base64 约为原图的 4/3；实际预算读取环境配置，不能直接按原图字节数套用请求上限。
+
+校验库固定使用 [无用字符串复制修复](https://github.com/Fragmentaim/jsonschema/commit/32495a5894a5) 的依赖版本；补丁只在启用内容检查时构造字节，不改变 Schema 规则。上游合入同等修复后可以移除 `go.mod` 的替换。
 
 | 模型键 | 业务 | 输入 |
 |---|---|---|
@@ -37,18 +71,11 @@
 
 ### G6 视觉推理
 
-在目标环境的网关配置中设置 `vision_addr`（私网 IP 和端口），例如美东路演 G6 的 `172.31.43.7:18280`。以下入口使用 API Bearer token，同步返回 G6 的状态码和结果。G6 负责选择执行卡；这些请求无需幂等键，也不进入生成任务队列。
+在目标环境的网关配置中设置 `vision_addr`（私网 IP 和端口），例如美东路演 G6 的 `172.31.43.7:18280`。视觉模型同样通过 `POST /v1/gateway/requests/{model_key}` 调用，携带 API Bearer Token、UUID `Idempotency-Key` 和 JSON `input`。字段定义从 `GET /v1/models/{model_key}` 的 `input_schema` 读取。
 
-| POST 路径 | 请求体 |
-|---|---|
-| `/v1/vision/human-parser/human_parser/predict` | JSON，`image` 为 Base64 |
-| `/v1/vision/human-yolo/predict` | multipart，`file` 或 Base64 `image`，可选 `conf`、`iou` |
-| `/v1/vision/facesim/compare` | multipart，`file_a`/`file_b` 或 Base64 `image_a`/`image_b`，可选 `face_index_a`、`face_index_b` |
-| `/v1/vision/segment-person/api/segment` | multipart，`file` 或 Base64 `image`，`method=person-birefnet-portrait`，可选 `preprocess`、`output`、`trace_id` |
-| `/v1/vision/segment-person/api/segment_subject` | multipart，`file` 或 Base64 `image`，`method=person-bria-rmbg`，可选 `output`、`trace_id` |
-| `/v1/vision/lens_distortion_correction/correct` | JSON，`base64` 为图片，可选 `mirror_lens`、`crop`、`sampler`、`preset` |
+图片以 Base64 放在 input 的 `image`、`file`、`image_a` / `image_b` 或 `base64` 等模型定义字段中；不接收图片 URL 或对象存储路径。Gateway 按登记协议编码原生 JSON/multipart，由登记实例的 endpoint 和容量决定派发，完成后返回原生结果。同步请求也记录到持久账本并占槽，但不经 RabbitMQ 生成任务队列。
 
-请将图片直接放在请求体内。入口拒绝 URL、对象存储路径及表中未列出的字段，避免调用方借用 G6 的网络和存储权限。
+管理接口 `GET /v1/vision/health` 继续用于视觉服务探测。
 
 ## 实例管理
 

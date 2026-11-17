@@ -1,0 +1,247 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "decision",
+  "description": "图片决策：恰好一张内联图片，预设 task 或用户问题二选一",
+  "x-category": "classification",
+  "type": "object",
+  "properties": {
+    "messages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "消息角色"
+          },
+          "content": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/text_part"
+                    },
+                    {
+                      "$ref": "#/$defs/image_part"
+                    }
+                  ]
+                },
+                "contains": {
+                  "$ref": "#/$defs/image_tag"
+                },
+                "minContains": 0,
+                "maxContains": 1
+              }
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "contains": {
+        "$ref": "#/$defs/message_with_image"
+      },
+      "minContains": 1,
+      "maxContains": 1
+    },
+    "stream": {
+      "type": "boolean"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "temperature": {
+      "type": "number"
+    },
+    "model_traits": {
+      "type": "object",
+      "properties": {
+        "task": {
+          "type": "string",
+          "description": "预设任务名称"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "messages"
+  ],
+  "additionalProperties": true,
+  "oneOf": [
+    {
+      "description": "预设任务：非空白 task，不传用户问题或非空 options",
+      "required": [
+        "model_traits"
+      ],
+      "properties": {
+        "model_traits": {
+          "required": [
+            "task"
+          ],
+          "properties": {
+            "task": {
+              "$ref": "#/$defs/nonblank_text"
+            },
+            "options": {
+              "maxItems": 0
+            }
+          }
+        }
+      },
+      "not": {
+        "properties": {
+          "messages": {
+            "contains": {
+              "$ref": "#/$defs/user_text"
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "自定义问题：用户消息含非空白文字，不传非空白 task，可附 options",
+      "properties": {
+        "messages": {
+          "contains": {
+            "$ref": "#/$defs/user_text"
+          }
+        },
+        "model_traits": {
+          "properties": {
+            "task": {
+              "not": {
+                "$ref": "#/$defs/nonblank_text"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "nonblank_text": {
+      "type": "string",
+      "pattern": "[^\\t\\n\\v\\f\\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]"
+    },
+    "text_part": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "text"
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "image_part": {
+      "type": "object",
+      "required": [
+        "type",
+        "image_url"
+      ],
+      "properties": {
+        "type": {
+          "const": "image_url"
+        },
+        "image_url": {
+          "type": "object",
+          "required": [
+            "url"
+          ],
+          "properties": {
+            "url": {
+              "type": "string",
+              "pattern": "^data:image/[^,]*;base64,"
+            }
+          }
+        }
+      }
+    },
+    "message_with_image": {
+      "type": "object",
+      "required": [
+        "content"
+      ],
+      "properties": {
+        "content": {
+          "type": "array",
+          "contains": {
+            "$ref": "#/$defs/image_tag"
+          }
+        }
+      }
+    },
+    "user_text": {
+      "type": "object",
+      "required": [
+        "role",
+        "content"
+      ],
+      "properties": {
+        "role": {
+          "const": "user"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/nonblank_text"
+            },
+            {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "required": [
+                  "type",
+                  "text"
+                ],
+                "properties": {
+                  "type": {
+                    "const": "text"
+                  },
+                  "text": {
+                    "$ref": "#/$defs/nonblank_text"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "image_tag": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "image_url"
+        }
+      }
+    }
+  }
+}

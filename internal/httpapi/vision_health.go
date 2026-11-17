@@ -20,10 +20,10 @@ func (s *Server) visionHealth(ctx context.Context, c *app.RequestContext) {
 	if addr != "" {
 		services := upstreamhealth.ReadVision(ctx, s.direct, "http://"+addr+"/health")
 		for _, route := range visionRoutes {
-			// 只展示有 ModelHub 模型标识的推理路由。两条分割路由共用同一个上游探活结果。
 			if route.modelKey == "" {
 				continue
 			}
+			// 两种分割协议共用同一个上游探活结果。
 			service := protocol.VisionService(route.protocol)
 			models = append(models, visionModelHealth{ModelKey: route.modelKey, Ready: services[service].Ready})
 		}

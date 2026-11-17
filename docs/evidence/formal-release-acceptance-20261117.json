@@ -1,0 +1,729 @@
+{
+  "date": "2026-11-17",
+  "sources": {
+    "image": "56ac90880102d1e9db61673e0b9ec9c9f9612b9c",
+    "gateway": "6639cda9241d150cea186c5ec9f9d97eb8b2843d",
+    "hub": "87beb8417895c05af9cf60389f4e27dc78ddd0d9"
+  },
+  "images": [
+    {
+      "name": "image-flux",
+      "reference": "vmind-g7e-flux:56ac90880102d1e9db61673e0b9ec9c9f9612b9c",
+      "image_id": "sha256:58338733f912b9517cb17b0f8b4cacf9252646dab2b0b341bd10a90fc268efbb",
+      "architecture": "amd64",
+      "user": "1000:1000",
+      "size": 29946421348,
+      "registry_tag": "054043816891.dkr.ecr.us-east-1.amazonaws.com/vmind-image:integration-flux-56ac90880102d1e9db61673e0b9ec9c9f9612b9c",
+      "push_exit": 0,
+      "registry_digests": [
+        "054043816891.dkr.ecr.us-east-1.amazonaws.com/vmind-image@sha256:58338733f912b9517cb17b0f8b4cacf9252646dab2b0b341bd10a90fc268efbb",
+        "vmind-g7e-flux@sha256:58338733f912b9517cb17b0f8b4cacf9252646dab2b0b341bd10a90fc268efbb"
+      ]
+    },
+    {
+      "name": "image-qwen",
+      "reference": "vmind-g7e-qwen:56ac90880102d1e9db61673e0b9ec9c9f9612b9c",
+      "image_id": "sha256:0ea0034c6a3005ee0c626e644c87b6c117569aca3ee37d4e3d1b41574bf305f8",
+      "architecture": "amd64",
+      "user": "1000:1000",
+      "size": 30325661441,
+      "registry_tag": "054043816891.dkr.ecr.us-east-1.amazonaws.com/vmind-image:integration-qwen-56ac90880102d1e9db61673e0b9ec9c9f9612b9c",
+      "push_exit": 0,
+      "registry_digests": [
+        "054043816891.dkr.ecr.us-east-1.amazonaws.com/vmind-image@sha256:0ea0034c6a3005ee0c626e644c87b6c117569aca3ee37d4e3d1b41574bf305f8",
+        "vmind-g7e-qwen@sha256:0ea0034c6a3005ee0c626e644c87b6c117569aca3ee37d4e3d1b41574bf305f8"
+      ]
+    },
+    {
+      "name": "image-endpoint",
+      "reference": "vmind-image-endpoint:56ac90880102d1e9db61673e0b9ec9c9f9612b9c",
+      "image_id": "sha256:8281c37dae804a4236022aa91eccb2117ab5b84c738b2773f4e9121208b37319",
+      "architecture": "amd64",
+      "user": "1000:1000",
+      "size": 232138415,
+      "registry_tag": "054043816891.dkr.ecr.us-east-1.amazonaws.com/vmind-image:integration-endpoint-56ac90880102d1e9db61673e0b9ec9c9f9612b9c",
+      "push_exit": 0,
+      "registry_digests": [
+        "054043816891.dkr.ecr.us-east-1.amazonaws.com/vmind-image@sha256:8281c37dae804a4236022aa91eccb2117ab5b84c738b2773f4e9121208b37319",
+        "vmind-image-endpoint@sha256:8281c37dae804a4236022aa91eccb2117ab5b84c738b2773f4e9121208b37319"
+      ]
+    },
+    {
+      "name": "gateway",
+      "reference": "codex-release-gateway:6639cda9241d150cea186c5ec9f9d97eb8b2843d",
+      "image_id": "sha256:b750318e64e01e92216705aa80581646f37b9defcc55fa0728618477a16af61d",
+      "architecture": "amd64",
+      "user": "10001",
+      "size": 116913664,
+      "registry_tag": "054043816891.dkr.ecr.us-east-2.amazonaws.com/wg/model-gateway:candidate-git-6639cda9241d150cea186c5ec9f9d97eb8b2843d",
+      "push_exit": 0,
+      "registry_digests": [
+        "054043816891.dkr.ecr.us-east-2.amazonaws.com/wg/model-gateway@sha256:b750318e64e01e92216705aa80581646f37b9defcc55fa0728618477a16af61d",
+        "codex-release-gateway@sha256:b750318e64e01e92216705aa80581646f37b9defcc55fa0728618477a16af61d"
+      ]
+    },
+    {
+      "name": "hub",
+      "reference": "codex-release-hub-production:87beb8417895c05af9cf60389f4e27dc78ddd0d9",
+      "image_id": "sha256:8775d3b40841e5b8f46fc55b251f1a1c1c0349264a24ca9f2b712e39e7ffc54f",
+      "architecture": "amd64",
+      "user": "10001:10001",
+      "size": 118873025,
+      "registry_tag": "054043816891.dkr.ecr.us-east-2.amazonaws.com/wg/modelhub:candidate-git-87beb8417895c05af9cf60389f4e27dc78ddd0d9",
+      "push_exit": 0,
+      "registry_digests": [
+        "054043816891.dkr.ecr.us-east-2.amazonaws.com/wg/modelhub@sha256:8775d3b40841e5b8f46fc55b251f1a1c1c0349264a24ca9f2b712e39e7ffc54f",
+        "codex-release-hub-production@sha256:8775d3b40841e5b8f46fc55b251f1a1c1c0349264a24ca9f2b712e39e7ffc54f"
+      ]
+    },
+    {
+      "name": "hub-migration",
+      "reference": "codex-release-hub-migration:87beb8417895c05af9cf60389f4e27dc78ddd0d9",
+      "image_id": "sha256:3963ceee5727cdd1d48b6fd985d4489bf6d12b0ce5eae44fc629f2cf031af6cc",
+      "architecture": "amd64",
+      "user": "10001:10001",
+      "size": 155786218,
+      "registry_tag": "054043816891.dkr.ecr.us-east-2.amazonaws.com/wg/modelhub:candidate-migration-git-87beb8417895c05af9cf60389f4e27dc78ddd0d9",
+      "push_exit": 0,
+      "registry_digests": [
+        "054043816891.dkr.ecr.us-east-2.amazonaws.com/wg/modelhub@sha256:3963ceee5727cdd1d48b6fd985d4489bf6d12b0ce5eae44fc629f2cf031af6cc",
+        "codex-release-hub-migration@sha256:3963ceee5727cdd1d48b6fd985d4489bf6d12b0ce5eae44fc629f2cf031af6cc"
+      ]
+    }
+  ],
+  "hub_images": [
+    {
+      "request_id": "3dbfb8af-cfd1-4e9f-bc15-04b74a5691c4",
+      "model_key": "Vmind_bodymodel_v1.0",
+      "state": "succeeded",
+      "instance_id": "candidate-gpu2-0",
+      "result": {
+        "files": [
+          {
+            "key": "outputs/3dbfb8af-cfd1-4e9f-bc15-04b74a5691c4/0.png",
+            "bucket": "candidate-results",
+            "region": "us-east-1",
+            "provider": "s3"
+          }
+        ],
+        "generation": {
+          "retries": {
+            "pe": {
+              "count": 0
+            },
+            "generation": {
+              "count": 0
+            },
+            "gateway_dispatch": {
+              "count": 0
+            }
+          },
+          "timings": {
+            "pe_ms": 0,
+            "queue_ms": 0,
+            "total_ms": 6771.94,
+            "inference_ms": 6558.18,
+            "gateway_queue_ms": 14.115,
+            "gateway_total_ms": 6837.225114
+          },
+          "pe_status": "disabled",
+          "parameters": {
+            "seed": 1548798403,
+            "steps": 8,
+            "width": 1024,
+            "height": 1536,
+            "guidance": 1,
+            "output_format": "png"
+          },
+          "model_version": {
+            "sha256": "7af4773e7ebb5f73a2f484bfb22f87c7234cb834300130b99bac9293e7e91d3a",
+            "revision": "74f1ac52208bccea564520f8b654128061dfb652",
+            "checkpoint": "WGDL/Qwen-Image-2.1-BodyModel-OriginalFine-SFT-20261113"
+          },
+          "effective_prompt_sha256": "abb769266da97ebe9f09e064f43297eb36eb2aec98046e90f3c899b78e0ef682"
+        }
+      },
+      "media": {
+        "width": 1024,
+        "height": 1536,
+        "mode": "RGB"
+      },
+      "hub": {
+        "bytes": 1130502,
+        "final": true,
+        "model": "Vmind_bodymodel_v1.0",
+        "seconds": 7.04102723,
+        "sha256": "6af5b0d1f1c64a34484ef22bacc1992c29aa0e809979f2e9fdeb74e054a718e6",
+        "task_id": ""
+      }
+    },
+    {
+      "request_id": "a889299a-3000-4a42-964b-23bb148d842a",
+      "model_key": "Vmind_cloth_gen_v1.0",
+      "state": "succeeded",
+      "instance_id": "candidate-gpu2-2",
+      "result": {
+        "files": [
+          {
+            "key": "outputs/a889299a-3000-4a42-964b-23bb148d842a/0.png",
+            "bucket": "candidate-results",
+            "region": "us-east-1",
+            "provider": "s3"
+          }
+        ],
+        "generation": {
+          "retries": {
+            "pe": {
+              "count": 0
+            },
+            "generation": {
+              "count": 0
+            },
+            "gateway_dispatch": {
+              "count": 0
+            }
+          },
+          "timings": {
+            "pe_ms": 1852.502,
+            "queue_ms": 0.732,
+            "total_ms": 4213.897,
+            "inference_ms": 2082.388,
+            "gateway_queue_ms": 18.599,
+            "gateway_total_ms": 4282.243635
+          },
+          "pe_status": "applied",
+          "parameters": {
+            "seed": 2310806806,
+            "steps": 4,
+            "width": 1024,
+            "height": 1024,
+            "guidance": 1,
+            "output_format": "png"
+          },
+          "model_version": {
+            "sha256": "adb1df7eaac5d45720b285e138c3cbbbb691919159e6a6155d7b9aff69474ad8",
+            "revision": "c05f41471a987ed1e7d70c4ab1fec87c8f531f77",
+            "checkpoint": "WGDL/FLUX.2-klein-9B-VTOFF-R3-SFT-20261108"
+          },
+          "effective_prompt_sha256": "ed51f65de3094c3730016e6f70bb49ee76917ac5faa3658658e6db2418fa7594"
+        }
+      },
+      "media": {
+        "width": 1024,
+        "height": 1024,
+        "mode": "RGB"
+      },
+      "hub": {
+        "bytes": 1532495,
+        "final": true,
+        "model": "Vmind_cloth_gen_v1.0",
+        "seconds": 5.047452167,
+        "sha256": "f8b5e6e33d021ae60116ce04d8d3c757573adf86e2e83fee667326cd92372b29",
+        "task_id": ""
+      }
+    },
+    {
+      "request_id": "e611b1a1-653f-4b4e-a546-d3f6adbd9e6c",
+      "model_key": "Vmind_wardrobe_v1.0",
+      "state": "succeeded",
+      "instance_id": "candidate-gpu2-3",
+      "result": {
+        "files": [
+          {
+            "key": "outputs/e611b1a1-653f-4b4e-a546-d3f6adbd9e6c/0.png",
+            "bucket": "candidate-results",
+            "region": "us-east-1",
+            "provider": "s3"
+          }
+        ],
+        "generation": {
+          "retries": {
+            "pe": {
+              "count": 0
+            },
+            "generation": {
+              "count": 0
+            },
+            "gateway_dispatch": {
+              "count": 0
+            }
+          },
+          "timings": {
+            "pe_ms": 1891.523,
+            "queue_ms": 0.687,
+            "total_ms": 4314.06,
+            "inference_ms": 2014.735,
+            "gateway_queue_ms": 13.178,
+            "gateway_total_ms": 4367.300026
+          },
+          "pe_status": "applied",
+          "parameters": {
+            "seed": 1311584644,
+            "steps": 4,
+            "width": 1024,
+            "height": 1024,
+            "guidance": 1,
+            "output_format": "png"
+          },
+          "model_version": {
+            "sha256": "adb1df7eaac5d45720b285e138c3cbbbb691919159e6a6155d7b9aff69474ad8",
+            "revision": "c05f41471a987ed1e7d70c4ab1fec87c8f531f77",
+            "checkpoint": "WGDL/FLUX.2-klein-9B-VTOFF-R3-SFT-20261108"
+          },
+          "effective_prompt_sha256": "63c06ef21db77578c0aaca8813eab1523a390c9055f31d6d4139f9fd1198fec8"
+        }
+      },
+      "media": {
+        "width": 1024,
+        "height": 1024,
+        "mode": "RGB"
+      },
+      "hub": {
+        "bytes": 1244963,
+        "final": true,
+        "model": "Vmind_wardrobe_v1.0",
+        "seconds": 5.036058101,
+        "sha256": "4ab441acd1282e1c05a1c6cedc321ce32fcc8878bcb98e70f738af628394cc68",
+        "task_id": ""
+      }
+    },
+    {
+      "request_id": "f95df784-8556-438a-8ccc-d50de09a84ed",
+      "model_key": "Vmind_outfit_v1.0",
+      "state": "succeeded",
+      "instance_id": "candidate-gpu2-1",
+      "result": {
+        "files": [
+          {
+            "key": "outputs/f95df784-8556-438a-8ccc-d50de09a84ed/0.png",
+            "bucket": "candidate-results",
+            "region": "us-east-1",
+            "provider": "s3"
+          }
+        ],
+        "generation": {
+          "retries": {
+            "pe": {
+              "count": 0
+            },
+            "generation": {
+              "count": 0
+            },
+            "gateway_dispatch": {
+              "count": 0
+            }
+          },
+          "timings": {
+            "pe_ms": 923.6828968860209,
+            "queue_ms": 0.0005369074642658234,
+            "total_ms": 10367.384438868612,
+            "inference_ms": 9247.153,
+            "gateway_queue_ms": 66.548,
+            "gateway_total_ms": 10743.898327
+          },
+          "pe_status": "applied",
+          "parameters": {
+            "seed": 3823897641,
+            "steps": 8,
+            "width": 1024,
+            "height": 1536,
+            "guidance": 1,
+            "output_format": "png"
+          },
+          "model_version": {
+            "revision": "4c1d9e4a74d9ac75a110737cee311a5e92f32766",
+            "checkpoint": "WGDL/Qwen-Image-2.1-VTON-AdaptiveCaption-SFT-20261108"
+          },
+          "effective_prompt_sha256": "f11dfaf4b1fce1e086f6c5d004a218d3e833ab397816083456e2d97494d2a2d0"
+        }
+      },
+      "media": {
+        "width": 1024,
+        "height": 1536,
+        "mode": "RGB"
+      },
+      "hub": {
+        "bytes": 531828,
+        "final": true,
+        "model": "Vmind_outfit_v1.0",
+        "seconds": 11.131790861,
+        "sha256": "678666aacd3180f80172323c3390a6262ea46f3818fbf8ef6ce78348c02c3c1c",
+        "task_id": ""
+      }
+    }
+  ],
+  "hub_video": {
+    "first": {
+      "bytes": 795814,
+      "final": true,
+      "model": "Vmind_outfit_video_v1.0",
+      "seconds": 12.058661742,
+      "sha256": "33fb2f981b31129752cca825bc7b64d0038042dbff4a94818a8f24319be5a69c",
+      "task_id": "e0cdc777-f79c-4e22-9262-c358fece5bc3"
+    },
+    "after_restart_replay": {
+      "bytes": 795814,
+      "final": true,
+      "model": "Vmind_outfit_video_v1.0",
+      "seconds": 0.016537135,
+      "sha256": "33fb2f981b31129752cca825bc7b64d0038042dbff4a94818a8f24319be5a69c",
+      "task_id": "e0cdc777-f79c-4e22-9262-c358fece5bc3"
+    },
+    "media": {
+      "codec": "h264",
+      "width": 704,
+      "height": 1280,
+      "fps": "24",
+      "frames": 97,
+      "duration_seconds": 4.041667,
+      "ffmpeg_exit": 0,
+      "decode_error": ""
+    },
+    "gateway": {
+      "request_id": "e0cdc777-f79c-4e22-9262-c358fece5bc3",
+      "model_key": "Vmind_outfit_video_v1.0",
+      "state": "succeeded",
+      "instance_id": "candidate-gpu1-video",
+      "result": {
+        "files": [
+          {
+            "key": "outputs/e0cdc777-f79c-4e22-9262-c358fece5bc3/0.mp4",
+            "bucket": "candidate-results",
+            "region": "us-east-1",
+            "provider": "s3"
+          }
+        ],
+        "generation": {
+          "retries": {
+            "pe": {
+              "count": 0
+            },
+            "generation": {
+              "count": 0
+            },
+            "gateway_dispatch": {
+              "count": 0
+            }
+          },
+          "timings": {
+            "pe_ms": 0,
+            "queue_ms": 0.601,
+            "total_ms": 7854.679,
+            "inference_ms": 7849.5,
+            "gateway_queue_ms": 1520.335,
+            "gateway_total_ms": 11010.583956
+          },
+          "pe_status": "disabled",
+          "parameters": {
+            "fps": 24,
+            "seed": 42,
+            "steps": 11,
+            "width": 704,
+            "height": 1280,
+            "guidance": null,
+            "num_frames": 97,
+            "stage_steps": [
+              8,
+              3
+            ],
+            "output_format": "mp4"
+          },
+          "model_version": {
+            "lora": {
+              "sha256": "147a51420b553d2d18586dd22e548d5094271662da597993cb6b1f97ef0ffdb3",
+              "revision": null,
+              "strength": 1,
+              "checkpoint": "lora_weights_step_00731.safetensors"
+            },
+            "sha256": "b33b7fe4bbfe084f484be4aaf90b0f1d95dca20d403ac4c0e037eb8c4f0af7cc",
+            "revision": null,
+            "checkpoint": "ltx-2.3-22b-distilled-1.1.safetensors"
+          },
+          "effective_prompt_sha256": "1e6de6b7da64a6c8fa31359a582451b319291d32e8d3bbffa5d3e10fb3650d81"
+        }
+      }
+    },
+    "gateway_requests": 1
+  },
+  "generic_images": [
+    {
+      "name": "generic-body",
+      "request_id": "855e459b-1fa0-406f-a027-0f6e933032c8",
+      "model": "Vmind_bodymodel_generic_v1.0",
+      "seconds": 2.198,
+      "media": {
+        "size": [
+          512,
+          768
+        ],
+        "mode": "RGB",
+        "sha256": "ba54c373f1adb804e34fe6fdd18b0e4f5de1ef25fcd0ee7ed28bfb028ab90c91",
+        "bytes": 195754
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/Qwen-Image-2.1-BodyModel-OriginalFine-SFT-20261113",
+          "revision": "74f1ac52208bccea564520f8b654128061dfb652",
+          "sha256": "7af4773e7ebb5f73a2f484bfb22f87c7234cb834300130b99bac9293e7e91d3a"
+        },
+        "pe_status": "disabled",
+        "parameters": {
+          "seed": 42,
+          "width": 512,
+          "height": 768,
+          "steps": 8,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0,
+          "pe_ms": 0,
+          "inference_ms": 1572.3456083796918,
+          "total_ms": 1572.435,
+          "gateway_queue_ms": 19.675,
+          "gateway_total_ms": 1675.259004
+        },
+        "effective_prompt_sha256": "c5bba90a018f909f2c6042567e3b1f38da374682fc4a175a6aa2dd96b17b3e6a"
+      },
+      "instance_id": "candidate-gpu2-5",
+      "replay_verified": true
+    },
+    {
+      "name": "generic-outfit",
+      "request_id": "ea09f494-4c3d-41f3-bff1-b76b537147d9",
+      "model": "Vmind_outfit_generic_v1.0",
+      "seconds": 3.52,
+      "media": {
+        "size": [
+          512,
+          768
+        ],
+        "mode": "RGB",
+        "sha256": "dde17fc78a3e1340daa0bbe7f033eccbb1ba4c78c8b05a4be3cc4e5153182b43",
+        "bytes": 79556
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/Qwen-Image-2.1-VTON-AdaptiveCaption-SFT-20261108",
+          "revision": "4c1d9e4a74d9ac75a110737cee311a5e92f32766",
+          "sha256": "d05710ee041b8b15768cb6995af13a1e88a26ca49f76cbb724e486b21a21d02c"
+        },
+        "pe_status": "disabled",
+        "parameters": {
+          "seed": 42,
+          "width": 512,
+          "height": 768,
+          "steps": 8,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0,
+          "pe_ms": 0,
+          "inference_ms": 1843.454945832491,
+          "total_ms": 1843.539,
+          "gateway_queue_ms": 66.33,
+          "gateway_total_ms": 2129.146002
+        },
+        "effective_prompt_sha256": "d6f3c5a79896ccdbf7c90762acacf8b2121a86a8408aa3fea97ec7f2e8ec8c10"
+      },
+      "instance_id": "candidate-gpu2-6",
+      "replay_verified": true
+    },
+    {
+      "name": "generic-wardrobe",
+      "request_id": "7a057f2c-4030-45a3-adf7-42cf5e1d47c1",
+      "model": "Vmind_wardrobe_generic_v1.0",
+      "seconds": 2.226,
+      "media": {
+        "size": [
+          512,
+          512
+        ],
+        "mode": "RGB",
+        "sha256": "93e0e6899f27202b09f0f8b0f9270b76a5644b88a269bcaa327901499f722ac4",
+        "bytes": 320158
+      },
+      "generation": {
+        "retries": {
+          "pe": {
+            "count": 0
+          },
+          "generation": {
+            "count": 0
+          },
+          "gateway_dispatch": {
+            "count": 0
+          }
+        },
+        "model_version": {
+          "checkpoint": "WGDL/FLUX.2-klein-9B-VTOFF-R3-SFT-20261108",
+          "revision": "c05f41471a987ed1e7d70c4ab1fec87c8f531f77",
+          "sha256": "adb1df7eaac5d45720b285e138c3cbbbb691919159e6a6155d7b9aff69474ad8"
+        },
+        "pe_status": "disabled",
+        "parameters": {
+          "seed": 42,
+          "width": 512,
+          "height": 512,
+          "steps": 4,
+          "guidance": 1,
+          "output_format": "png"
+        },
+        "timings": {
+          "queue_ms": 0.546,
+          "pe_ms": 0,
+          "inference_ms": 1066.26,
+          "total_ms": 1203.487,
+          "gateway_queue_ms": 22.291,
+          "gateway_total_ms": 1280.276397
+        },
+        "effective_prompt_sha256": "58ee2f6e8189fbdd0bd3f27ef68584c5e84a4decc6300c0dbdac5c73ce9f63a4"
+      },
+      "instance_id": "candidate-gpu2-4",
+      "replay_verified": true
+    }
+  ],
+  "tests": {
+    "image_business_cpu": 146,
+    "qwen_server_generic_cpu": 22,
+    "hub_dockerfile_go_tests": true
+  },
+  "storage": "isolated local S3-compatible fixture; not production S3",
+  "restoration": {
+    "instances": [
+      {
+        "id": "519eeb3d3b5045d9a228147d9455768f",
+        "model_key": "Vmind_bodymodel_v1.0",
+        "resource_group": "g7e/gpu2",
+        "healthy": true,
+        "eligible": true,
+        "reserved_requests": 0
+      },
+      {
+        "id": "g7e-gpu0-video",
+        "model_key": "Vmind_outfit_video_v1.0",
+        "resource_group": "g7e/gpu0",
+        "healthy": true,
+        "eligible": true,
+        "reserved_requests": 0
+      },
+      {
+        "id": "vmind-3dd0cef3-c45b-421d-8e11-a104bb9e0a55",
+        "model_key": "Vmind_wardrobe_v1.0",
+        "resource_group": "g7e/gpu2",
+        "healthy": true,
+        "eligible": true,
+        "reserved_requests": 0
+      },
+      {
+        "id": "vmind-a9a15008-bff6-4ac6-bf15-e2376c928155",
+        "model_key": "Vmind_wardrobe_v1.0",
+        "resource_group": "g7e/gpu3",
+        "healthy": true,
+        "eligible": true,
+        "reserved_requests": 0
+      },
+      {
+        "id": "vmind-e7073153-37f2-4ab2-ad86-b8c1a012af2a",
+        "model_key": "Vmind_bodymodel_v1.0",
+        "resource_group": "g7e/gpu3",
+        "healthy": true,
+        "eligible": true,
+        "reserved_requests": 0
+      },
+      {
+        "id": "g7e-gpu2-qwen-vton-20261108",
+        "model_key": "Vmind_outfit_v1.0",
+        "resource_group": "g7e/gpu2",
+        "healthy": true,
+        "eligible": true,
+        "reserved_requests": 0
+      },
+      {
+        "id": "g7e-gpu2-cloth",
+        "model_key": "Vmind_cloth_gen_v1.0",
+        "resource_group": "g7e/gpu2",
+        "healthy": true,
+        "eligible": true,
+        "reserved_requests": 0
+      },
+      {
+        "id": "g7e-gpu3-cloth",
+        "model_key": "Vmind_cloth_gen_v1.0",
+        "resource_group": "g7e/gpu3",
+        "healthy": true,
+        "eligible": true,
+        "reserved_requests": 0
+      },
+      {
+        "id": "g7e-gpu1-video",
+        "model_key": "Vmind_outfit_video_v1.0",
+        "resource_group": "g7e/gpu1",
+        "healthy": true,
+        "eligible": true,
+        "reserved_requests": 0
+      },
+      {
+        "id": "g7e-gpu3-qwen-vton-20261108",
+        "model_key": "Vmind_outfit_v1.0",
+        "resource_group": "g7e/gpu3",
+        "healthy": true,
+        "eligible": true,
+        "reserved_requests": 1
+      }
+    ],
+    "container_verification": [
+      {
+        "name": "/vmind-qwen-a-qwen-a-1",
+        "same_image": true,
+        "same_env": true,
+        "running": true,
+        "health": "healthy"
+      },
+      {
+        "name": "/vmind-g7e-flux2-1",
+        "same_image": true,
+        "same_env": true,
+        "running": true,
+        "health": "healthy"
+      },
+      {
+        "name": "/vmind-exhibition-qwen-vton-gpu2-1",
+        "same_image": true,
+        "same_env": true,
+        "running": true,
+        "health": "healthy"
+      },
+      {
+        "name": "/vmind-video",
+        "same_image": true,
+        "same_env": true,
+        "running": true,
+        "health": "healthy"
+      }
+    ]
+  }
+}
