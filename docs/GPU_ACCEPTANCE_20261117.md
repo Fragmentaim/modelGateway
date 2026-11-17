@@ -62,3 +62,20 @@ Image 从当前固定基础镜像叠加候选源码构建。首次启动暴露�
 验收工具新增 `--require-pe`：即使生成成功，fallback、disabled 或缺少状态也返回失败。代码修复版本为 Image `c96e5cc4334f5896b65fc5e949eeb742f5c452d0`；Gateway 运行版本保持首轮版本。详细请求、输入/输出摘要、固定制品与恢复证据见 [PE 机器可读记录](evidence/pe-acceptance-20261117.json)。原始输入及新旧完整输出保存在授权验收目录，未将业务图片提交到公开仓库。
 
 对比限制：旧版样本已经修正提示词路径，但尚未修复代码；新旧随机种子不同，图片只能作为功能验收证据，不能推导画质整体提升。使用隔离 Gateway 与本地对象存储测试服务，生产 S3、迁移、Hub 链路及正式制品发布仍按上节待完成项执行。
+
+## 正式构建与 ModelHub 链路验收（2026-11-17）
+
+已使用仓库正式 Dockerfile 构建 Image Qwen、FLUX、入口服务，以及 Gateway、ModelHub、ModelHub migration 共六个制品，推送到现有 ECR 后通过 BatchGetImage 核对 digest。不是前述源码叠加镜像。版本为 Image `56ac908`、Gateway `6639cda`、Hub `87beb84`；Hub 已合入最新 dev，保留同期 ASR 和 embedding batch 改动。之后 Hub `c988980` 仅修正视觉配置 Schema、样例、测试和文档，未改变运行时 Go 代码；正式 GPU 验收记录对应 `87beb84`，不得把后续提交称为已重新构建的制品。
+
+| 检查 | 结果 |
+|---|---|
+| 正式 Image 镜像 CPU 回归 | 146 个业务测试、22 个 Qwen server/generic 测试通过；业务测试挂载源码 configs 测试夹具，未覆盖运行时代码 |
+| 正式 Hub 构建测试 | production / migration Dockerfile 的完整 Go 测试和 genai patch 测试通过 |
+| Hub gRPC → Gateway → GPU → 结果存储 → Hub 图片流 | BodyModel、商品图、拆衣、试衣四例完整 PNG 解码通过；后三例 PE applied；体模按默认禁用 PE |
+| Hub Submit/Get 视频 | 完整 H.264 视频可解码，704×1280、97 帧；Hub 重启后相同 request_id 复用同一任务与结果，Gateway 只有一条该视频请求 |
+| 通用生成 | BodyModel、Outfit、Wardrobe 三例通过，保留调用方 prompt、PE disabled、seed；同 UUID 重放无重复 Worker 推理 |
+| 恢复 | 原四个容器镜像及环境一致，10 个生产实例 healthy/eligible；未升级生产 Gateway 或 ModelHub |
+
+原始请求 ID、输出 SHA256、重放、制品和恢复事实见 [正式验收证据](evidence/formal-release-acceptance-20261117.json)；远端仓库的六个 digest 核对见 [ECR 验证](evidence/registry-verification-20261117.json)。证据只含摘要，不含 Token、配置凭据和原始业务媒体。
+
+**仍未通过的发布门槛：** 本轮 Hub 是正式镜像启动的隔离完整服务，PG/MQ 与 S3 仍为隔离测试设施，不能宣称生产 ModelHub、生产 S3 权限或生产数据库迁移已验收。真实 AppConfig 已读到；五个视觉 provider 的旧直连字段会导致候选 Hub 启动失败，另有国内 L20-1 `human-parser` 尚未接入 Gateway。需先完成配置迁移及国内解析转发，再验证完整生产配置。当前本机 IAM 对结果桶 HeadBucket 返回 403；它不能证明 ECS TaskRole 缺权限，也不能替代以服务运行身份完成存储验收。G7e 到生产 Hub 内网 gRPC 端口不可达，需要已有授权运行入口。所有 PR 保持草稿，不据此合并触发生产部署。

@@ -31,6 +31,10 @@
 
 ## 可复现测试
 
+正式 Dockerfile 的六个候选制品已发布 ECR，完整 Hub 图片/视频与通用生成已在隔离存储下通过，详见 [正式构建验收](GPU_ACCEPTANCE_20261117.md#正式构建与-modelhub-链路验收2026-11-17)。正式发布仍需先消除真实 AppConfig 的视觉直连字段并完成国内 `human-parser` 接入；随后通过生产存储、生产运行身份和完整配置验证。不得把“镜像已推送”当成“生产已验证”。
+
+国内解析的现有目标是 L20-1 `https://human-parser.model.wgdl.tech/human_parser`，模型键保留 `human-parser`。该域名后是 GPU 2/3 两个副本，经 Caddy → Kubernetes Service 负载均衡；当前 G6 定向派发协议不能直接登记该 HTTPS 目标。后续需增加原生视觉执行支持，使用可明确定位副本的入口与健康检查，或定义真正由后端管理容量的池协议；不可把聚合入口伪装成某张卡的单实例。ModelHub 只保留 `vision_gateway` 引用，原生地址、鉴权和路由属于 Gateway。
+
 常规 Gateway 测试使用独立 `_test` PostgreSQL 和 RabbitMQ：
 
 ```sh
