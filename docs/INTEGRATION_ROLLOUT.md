@@ -6,7 +6,7 @@
 
 - 已上线：G7e GPU2/3 的 FLUX 服装生成服务更新 PE 调用代码和版本化提示词配置。**PE 推理服务仍在 GPU0，未迁移或重启。** 生产 Gateway → GPU → S3 写入/取回及四次 PE applied 已通过，详细证据在 Image 的 `deploy/qwen_pe/production-pe-20261117.json`。
 - 待发布：Gateway 输入 Schema、模型目录、OpenAI-compatible 通用生成入口，以及 ModelHub 的规范业务 JSON 映射。
-- 待完成的生产门槛：现有 ModelHub gRPC 全链路验收。一次性 ECS 客户端已能启动，但从 ModelHub 自身安全组访问 50053 超时；正在确认既有业务方的网络入口。当前没有以该验收为由改生产服务或安全组。
+- 已完成生产基线验收：沿用现有 wardrober-service 安全组打通 ModelHub 50053；五条真实生成链路返回成功，三条衣物链路 PE applied，输出与生产 S3 文件 SHA256 一致，图片和视频完整解码。未更改安全组规则或生产服务配置。证据见 [生产 Hub 验收](evidence/production-hub-acceptance-20261117.json)。这证明现有生产链路可用，不代表本批新 Gateway/Hub 已发布。
 
 ## 保持的契约
 
@@ -30,7 +30,7 @@
 
 ## 验证
 
-2026-11-17：本候选已通过 `go test -race ./...`（独立 PostgreSQL/RabbitMQ）、`scripts/ci/test-generic-contracts.sh`（真实 Python 路由/Schema 和 Hub 适配器，CPU 推理替身）、`go vet ./...` 与 `go mod verify`。生产 Hub 验收仍受上述网络入口限制。
+2026-11-17：本候选已通过 `go test -race ./...`（独立 PostgreSQL/RabbitMQ）、`scripts/ci/test-generic-contracts.sh`（真实 Python 路由/Schema 和 Hub 适配器，CPU 推理替身）、`go vet ./...` 与 `go mod verify`。生产 Hub 基线验收已通过，候选发布后的回归仍须执行。
 
 新增兼容测试覆盖旧固定入口实际派发、追踪与重复提交保护，以及四种旧图片信封与规范 JSON 使用同 UUID 重放同一任务。ModelHub 保留原视觉配置和媒体传输测试，并验证规范字段映射与动态模型键。历史隔离 GPU/正式镜像验收见 `GPU_ACCEPTANCE_20261117.md`，不代表本批新候选已经部署生产。
 
