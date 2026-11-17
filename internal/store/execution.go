@@ -106,11 +106,12 @@ func (s *Store) ClaimPoll(ctx context.Context) (*ent.Request, error) {
 	}
 	defer tx.Rollback()
 	now := time.Now().UTC()
-	// 回查沿用派发账本里的原地址、任务 ID 和协议，后续登记不改变在途任务。
+	// 回查沿用派发账本里的原地址、任务 ID 和协议，并读取受理快照恢复原始身份与追踪。
+	// shortcut: 元数据仍嵌在含媒体的正文中；若轮询读取量成为瓶颈，再迁移为独立元数据字段。
 	task, err := tx.Request.Query().Where(request.SlotReservedEQ(true), request.NextPollAtLTE(now),
 		request.ProtocolNotIn(protocol.SynchronousProtocols()...)).
 		Order(ent.Asc(request.FieldNextPollAt, request.FieldID)).ForUpdate(sql.WithLockAction(sql.SkipLocked)).
-		Select(request.FieldID, request.FieldEndpoint, request.FieldModelKey, request.FieldProtocol, request.FieldBackendTaskID, request.FieldStartedAt, request.FieldState).First(ctx)
+		Select(request.FieldID, request.FieldEndpoint, request.FieldModelKey, request.FieldProtocol, request.FieldBackendTaskID, request.FieldStartedAt, request.FieldState, request.FieldRequestPayload).First(ctx)
 	if ent.IsNotFound(err) {
 		return nil, nil
 	}
