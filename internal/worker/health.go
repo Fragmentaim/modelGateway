@@ -45,13 +45,25 @@ func (w *Reconciler) ProbeInstance(ctx context.Context, cfg *config.Snapshot, ta
 	if backend, direct := cfg.NativeBackendFor(target.ModelKey, target.Endpoint); direct && !protocol.GenerationProtocol(target.Protocol) {
 		return w.nativeHealth(ctx, cfg, target, backend)
 	}
-	raw, err := w.modelCall(ctx, cfg, http.MethodGet, target.HealthURL, "", nil)
-	if err != nil {
-		return protocol.InstanceHealth{}, err
-	}
 	var health healthReport
-	if err := json.Unmarshal(raw, &health); err != nil {
-		return protocol.InstanceHealth{}, err
+	if protocol.GenerationProtocol(target.Protocol) {
+		// Never send an endpoint's private native credential to an independent
+		// health service. Only paths under the registered endpoint inherit it.
+		auth := nativeAuth{bearer: cfg.BackendToken}
+		if target.HealthURL == target.Endpoint || strings.HasPrefix(target.HealthURL, target.Endpoint+"/") {
+			auth = w.generationAuth(cfg, target.ModelKey, target.Endpoint)
+		}
+		if err := w.nativeJSON(ctx, auth, target.HealthURL, &health); err != nil {
+			return protocol.InstanceHealth{}, err
+		}
+	} else {
+		raw, err := w.modelCall(ctx, cfg, http.MethodGet, target.HealthURL, "", nil)
+		if err != nil {
+			return protocol.InstanceHealth{}, err
+		}
+		if err := json.Unmarshal(raw, &health); err != nil {
+			return protocol.InstanceHealth{}, err
+		}
 	}
 	ready := health.Ready != nil && *health.Ready
 	if protocol.GenerationProtocol(target.Protocol) {

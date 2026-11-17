@@ -27,12 +27,25 @@ import (
 // Real HTTP -> PostgreSQL -> RabbitMQ -> model -> object store -> HTTP. Model
 // names occur only in this test; registration must be sufficient for dispatch.
 func TestGenericGenerationEndToEnd(t *testing.T) {
+	for _, native := range []bool{false, true} {
+		name := "bearer"
+		if native {
+			name = "existing_native_credential"
+		}
+		t.Run(name, func(t *testing.T) { testGenericGenerationEndToEnd(t, native) })
+	}
+}
+
+func testGenericGenerationEndToEnd(t *testing.T, native bool) {
 	ledger, _, db := stores(t)
 	cfg := testConfig()
 	cfg.RabbitMQURL, cfg.RabbitMQQueue, _ = testsupport.RabbitQueue(t)
 	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
 	cfg.BackendToken = "generic-backend-token"
+	if native {
+		t.Setenv("MODEL_GATEWAY_NATIVE_VIDEO_TOKEN", "native-video-credential")
+	}
 	cfg.PollInterval = 20 * time.Millisecond
 	cfg.NativeExecutionTimeout = 5 * time.Second
 	png := []byte("\x89PNG\r\n\x1a\ngeneric output")
@@ -71,15 +84,19 @@ func TestGenericGenerationEndToEnd(t *testing.T) {
 	var finishVideo atomic.Bool
 	parameters := `{"seed":9007199254740993,"enhance":false,"adapter":{"name":"custom","strength":0.75}}`
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer "+cfg.BackendToken {
+		authenticated := r.Header.Get("Authorization") == "Bearer "+cfg.BackendToken
+		if native {
+			authenticated = r.Header.Get("X-Token") == "native-video-credential" && r.Header.Get("Authorization") == ""
+		}
+		if !authenticated {
 			t.Error("missing backend authentication")
 			w.WriteHeader(401)
 			return
 		}
 		switch r.Method + " " + r.URL.Path {
-		case "GET /pool/health":
+		case "GET /gpu0/health":
 			_, _ = io.WriteString(w, `{"ready":true,"models":["new-image-A","new-image-B","new-video"]}`)
-		case "POST /pool/v1/images/generations":
+		case "POST /gpu0/v1/images/generations":
 			imageCalls.Add(1)
 			var body protocol.ImageGenerationRequest
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -107,7 +124,7 @@ func TestGenericGenerationEndToEnd(t *testing.T) {
 				t.Error("lost metadata")
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"model": body.Model, "data": []map[string][]byte{{"b64_json": png}, {"b64_json": png}}})
-		case "POST /pool/v1/videos":
+		case "POST /gpu0/v1/videos":
 			videoCalls.Add(1)
 			var body protocol.VideoGenerationRequest
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -126,15 +143,15 @@ func TestGenericGenerationEndToEnd(t *testing.T) {
 				job = "job-failed"
 			}
 			_ = json.NewEncoder(w).Encode(map[string]string{"model": "new-video", "id": job, "status": "queued"})
-		case "GET /pool/v1/videos/job-ok":
+		case "GET /gpu0/v1/videos/job-ok":
 			status := "in_progress"
 			if finishVideo.Load() {
 				status = "completed"
 			}
 			_ = json.NewEncoder(w).Encode(map[string]string{"model": "new-video", "id": "job-ok", "status": status})
-		case "GET /pool/v1/videos/job-failed":
+		case "GET /gpu0/v1/videos/job-failed":
 			_, _ = io.WriteString(w, `{"model":"new-video","id":"job-failed","status":"failed"}`)
-		case "GET /pool/v1/videos/job-ok/content":
+		case "GET /gpu0/v1/videos/job-ok/content":
 			w.Header().Set("Content-Type", "video/mp4")
 			_, _ = w.Write(video)
 		default:
@@ -145,6 +162,9 @@ func TestGenericGenerationEndToEnd(t *testing.T) {
 	defer backend.Close()
 	u, _ := url.Parse(backend.URL)
 	cfg.AllowedPorts = append(cfg.AllowedPorts, u.Port())
+	if native {
+		cfg.NativeBackends = map[string]config.NativeBackend{backend.URL + "/gpu0": {Video: true}}
+	}
 	runtime, err := config.NewRuntime(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -181,7 +201,7 @@ func TestGenericGenerationEndToEnd(t *testing.T) {
 		return raw, res.Header
 	}
 	for _, item := range []struct{ model, kind string }{{"new-image-A", protocol.ImageGenerationProtocol}, {"new-image-B", protocol.ImageGenerationProtocol}, {"new-video", protocol.VideoGenerationProtocol}, {"legacy-body", protocol.BodyProtocol}} {
-		spec := testInstance(item.model, backend.URL+"/pool", 1)
+		spec := testInstance(item.model, backend.URL+"/gpu0", 1)
 		spec.Protocol = item.kind
 		spec.InputSchema = []byte(`{"type":"object"}`)
 		ensureTestGroup(t, ledger, spec)

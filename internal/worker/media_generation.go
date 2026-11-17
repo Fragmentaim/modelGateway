@@ -44,6 +44,17 @@ func generationRequest(task *ent.Request, input protocol.Submission) (string, []
 	}
 }
 
+// A generic route on an existing native endpoint uses that endpoint's existing
+// credential. Unmapped generation workers retain the configured bearer token.
+func (w *Reconciler) generationAuth(cfg *config.Snapshot, model, endpoint string) nativeAuth {
+	if backend, ok := cfg.NativeBackendFor(model, endpoint); ok {
+		if auth := w.nativeAuth(backend); auth != (nativeAuth{}) {
+			return auth
+		}
+	}
+	return nativeAuth{bearer: cfg.BackendToken}
+}
+
 func (w *Reconciler) executeGeneration(ctx context.Context, cfg *config.Snapshot, task *ent.Request, input protocol.Submission) error {
 	if w.results == nil {
 		return w.failDispatch(task, 503, "result_storage_unavailable", "generation result storage is not configured", false)
@@ -68,7 +79,7 @@ func (w *Reconciler) executeGeneration(ctx context.Context, cfg *config.Snapshot
 	if input.Metadata.UserID != "" {
 		headers.Set("X-User-ID", input.Metadata.UserID)
 	}
-	resp, err := w.nativeHTTP(ctx, nativeAuth{bearer: cfg.BackendToken}, http.MethodPost, task.Endpoint+path, bytes.NewReader(raw), headers)
+	resp, err := w.nativeHTTP(ctx, w.generationAuth(cfg, task.ModelKey, task.Endpoint), http.MethodPost, task.Endpoint+path, bytes.NewReader(raw), headers)
 	if err != nil {
 		var status modelStatusError
 		if errors.Is(err, errNativeRouteUnavailable) {
@@ -141,7 +152,7 @@ func (w *Reconciler) pollGeneration(cfg *config.Snapshot, task *ent.Request) err
 		return w.pollUnavailable(cfg, task)
 	}
 	jobURL := task.Endpoint + "/v1/videos/" + task.BackendTaskID
-	auth := nativeAuth{bearer: cfg.BackendToken}
+	auth := w.generationAuth(cfg, task.ModelKey, task.Endpoint)
 	ctx, cancel := context.WithTimeout(w.ctx, 3*time.Second)
 	var job generationVideoJob
 	err := w.nativeJSON(ctx, auth, jobURL, &job)

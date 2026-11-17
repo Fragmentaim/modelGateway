@@ -2,12 +2,49 @@ package worker
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/wgdl666/modelGateway/ent"
+	"github.com/wgdl666/modelGateway/internal/config"
 	"github.com/wgdl666/modelGateway/internal/protocol"
 )
+
+func TestGenericHealthUsesEndpointCredentialWithoutLeakingToIndependentProbe(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/gpu1/health" {
+			if r.Header.Get("X-Token") != "native-video" || r.Header.Get("Authorization") != "" {
+				t.Error("generic endpoint did not inherit native credential")
+			}
+		} else if r.Header.Get("X-Token") != "" || r.Header.Get("Authorization") != "Bearer generic-default" {
+			t.Error("native credential leaked to an independent health endpoint")
+		}
+		fmt.Fprint(w, `{"ready":true,"models":["generic-video"]}`)
+	}))
+	defer server.Close()
+	u, _ := url.Parse(server.URL)
+	runtime, err := config.NewRuntime(config.Config{DatabaseURL: "test",
+		APIToken: "test-api-token-at-least-24-chars", AdminToken: "test-admin-token-at-least-24-chars",
+		BackendToken: "generic-default", AllowedNetworks: []string{"127.0.0.0/8"}, AllowedPorts: []string{u.Port()},
+		NativeBackends: map[string]config.NativeBackend{server.URL + "/gpu1": {Video: true}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := &Reconciler{runtime: runtime, client: server.Client(), nativeVideoAuth: nativeAuth{token: "native-video"}}
+	for _, path := range []string{"/gpu1/health", "/independent/health"} {
+		result, err := w.ProbeInstance(t.Context(), runtime.Current(), protocol.InstanceTarget{
+			ModelKey: "generic-video", Protocol: protocol.VideoGenerationProtocol, Endpoint: server.URL + "/gpu1", HealthURL: server.URL + path,
+		})
+		if err != nil || !result.Ready {
+			t.Fatalf("probe: %+v %v", result, err)
+		}
+	}
+}
 
 func TestGenerationDispatchUsesRegisteredModelAndSeparateContracts(t *testing.T) {
 	for _, tc := range []struct{ kind, path, input string }{
