@@ -14,7 +14,7 @@ import (
 // 等待响应时只取响应字段和截止时间，避免反复读取入队保存的大图。
 func (s *Store) Get(ctx context.Context, id string) (*ent.Request, error) {
 	return s.db.Request.Query().Where(request.IDEQ(id)).Select(
-		request.FieldID, request.FieldModelKey, request.FieldProtocol, request.FieldState, request.FieldInstanceID, request.FieldTraceID,
+		request.FieldID, request.FieldModelKey, request.FieldProtocol, request.FieldState, request.FieldInstanceID, request.FieldTraceID, request.FieldCreatedAt,
 		request.FieldDispatchAttempts, request.FieldDispatchRetryReason, request.FieldDeadlineAt, request.FieldResult, request.FieldErrorCode, request.FieldErrorMessage, request.FieldErrorStatus,
 	).Only(ctx)
 }

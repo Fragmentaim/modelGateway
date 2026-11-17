@@ -234,12 +234,16 @@ func testGenericGenerationEndToEnd(t *testing.T, native bool) {
 	checkImages := func(raw []byte) {
 		t.Helper()
 		var result struct {
-			Data []struct {
+			Created int64 `json:"created"`
+			Data    []struct {
 				Bytes []byte `json:"b64_json"`
 			} `json:"data"`
 		}
 		if json.Unmarshal(raw, &result) != nil || len(result.Data) != 2 || !bytes.Equal(result.Data[0].Bytes, png) || !bytes.Equal(result.Data[1].Bytes, png) {
 			t.Fatalf("image result: %s", raw)
+		}
+		if result.Created < time.Now().Add(-time.Minute).Unix() || result.Created > time.Now().Unix() {
+			t.Fatalf("image response lost persisted creation time: %d", result.Created)
 		}
 	}
 	for _, model := range []string{"new-image-A", "new-image-B"} {
@@ -290,9 +294,16 @@ func testGenericGenerationEndToEnd(t *testing.T, native bool) {
 			refs = `,"images":[{"mime_type":"image/png","data":"eA=="}]`
 		}
 		raw, _ := call("POST", "/v1/videos", apiToken, "", "application/json", []byte(`{"model":"new-video","prompt":"`+prompt+`","seconds":4.5,"parameters":{"audio":true,"fps":24}`+refs+`}`), 200)
-		var job struct{ ID, Model, Status string }
+		var job struct {
+			ID, Model, Status string
+			CreatedAt         int64 `json:"created_at"`
+		}
 		if json.Unmarshal(raw, &job) != nil || job.Model != "new-video" || !protocol.ValidID(job.ID) {
 			t.Fatalf("video identity: %s", raw)
+		}
+		createdAt := job.CreatedAt
+		if createdAt < time.Now().Add(-time.Minute).Unix() || createdAt > time.Now().Unix() {
+			t.Fatalf("invalid creation time on submission: %d", createdAt)
 		}
 		if prompt != "fail" {
 			call("GET", "/v1/videos/"+job.ID+"/content", apiToken, "", "", nil, 409)
@@ -306,6 +317,9 @@ func testGenericGenerationEndToEnd(t *testing.T, native bool) {
 			raw, _ := call("GET", "/v1/videos/"+job.ID, apiToken, "", "", nil, 200)
 			if json.Unmarshal(raw, &job) != nil {
 				t.Fatalf("video status: %s", raw)
+			}
+			if job.CreatedAt != createdAt {
+				t.Fatalf("polling changed creation time: %d -> %d", createdAt, job.CreatedAt)
 			}
 			return job.Status == want
 		})
