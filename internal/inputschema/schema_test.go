@@ -27,12 +27,61 @@ func TestSeedsAndCredentialFields(t *testing.T) {
 	}{
 		{`{"images":[{"mime_type":"image/png","data":"eA=="},{"mime_type":"image/png","data":"eA=="}],"prompt":"try on"}`, false, true},
 		{`{"images":[{"mime_type":"image/png","data":"eA=="}]}`, false, false},
-		{`{"images":[{"mime_type":"image/png","data":"eA=="},{"mime_type":"image/png","data":"eA=="}],"use_pe":"false"}`, false, false},
-		{`{"images":[{"mime_type":"image/png","data":"eA=="},{"mime_type":"image/png","data":"eA=="}],"use_pe":"false"}`, true, true},
+		{`{"images":[{"mime_type":"image/png","data":"eA=="},{"mime_type":"image/png","data":"eA=="}],"prompt":"try on","use_pe":"false"}`, false, false},
+		{`{"images":[{"mime_type":"image/png","data":"eA=="},{"mime_type":"image/png","data":"eA=="}],"prompt":"try on","use_pe":"false"}`, true, true},
 	} {
 		if _, err := Validate(schema, json.RawMessage(tc.input), tc.experimental); (err == nil) != tc.valid {
 			t.Errorf("valid=%v: %v", tc.valid, err)
 		}
+	}
+}
+
+func TestMediaSchemasMatchNativeInputs(t *testing.T) {
+	const image = `{"mime_type":"image/png","data":"eA=="}`
+	const oneImage = "[" + image + "]"
+	const twoImages = "[" + image + "," + image + "]"
+	for _, tc := range []struct {
+		name, protocol, images, fields string
+		experimental, valid            bool
+	}{
+		{"vton missing prompt", "vton", twoImages, "", false, false},
+		{"vton whitespace", "vton", twoImages, `,"prompt":"\t\u3000"`, false, false},
+		{"vton NUL", "vton", twoImages, `,"prompt":"a\u0000b"`, false, false},
+		{"qwen prompt limit", "vton", twoImages, `,"prompt":"` + strings.Repeat("衣", 20000) + `"`, false, true},
+		{"qwen prompt too long", "vton", twoImages, `,"prompt":"` + strings.Repeat("衣", 20001) + `"`, false, false},
+		{"vton invalid use_pe", "vton", twoImages, `,"prompt":"try on","use_pe":"maybe"`, true, false},
+		{"body missing gender", "body_model", oneImage, "", false, false},
+		{"body invalid gender", "body_model", oneImage, `,"gender":"f"`, false, false},
+		{"body unknown gender", "body_model", oneImage, `,"gender":"unknown"`, false, true},
+		{"cloth optional role", "product_generation", oneImage, `,"garment_name":"shirt"`, false, true},
+		{"cloth missing name", "product_generation", oneImage, "", false, false},
+		{"cloth multiline name", "product_generation", oneImage, `,"garment_name":"shirt\ncoat"`, false, false},
+		{"cloth invalid role", "product_generation", oneImage, `,"garment_name":"shirt","garment_role":"feet"`, false, false},
+		{"wardrobe bbox", "garment_extraction", oneImage, `,"garment_name":"shirt","bbox":[0,0,1,1],"bbox_format":"normalized_xyxy"`, false, true},
+		{"wardrobe bbox missing name", "garment_extraction", oneImage, `,"bbox":[0,0,1,1]`, false, false},
+		{"wardrobe invalid bbox format", "garment_extraction", oneImage, `,"garment_name":"shirt","bbox":[0,0,1,1],"bbox_format":"xywh"`, false, false},
+		{"wardrobe mask", "garment_extraction", twoImages, `,"garment_name":"shirt","garment_role":"clothing::top/full","parse_labels":{"3":"top"}`, false, true},
+		{"wardrobe mask missing role", "garment_extraction", twoImages, `,"garment_name":"shirt","parse_labels":{"3":"top"}`, false, false},
+		{"wardrobe mask missing labels", "garment_extraction", twoImages, `,"garment_name":"shirt","garment_role":"clothing::top/full"`, false, false},
+		{"wardrobe labels missing mask", "garment_extraction", oneImage, `,"garment_name":"shirt","garment_role":"clothing::top/full","parse_labels":{"3":"top"}`, false, false},
+		{"wardrobe mixed modes", "garment_extraction", twoImages, `,"garment_name":"shirt","garment_role":"clothing::top/full","parse_labels":{"3":"top"},"bbox":[0,0,1,1]`, false, false},
+		{"video motion only", "outfit_video", oneImage, `,"motion_tips":"turn left"`, false, false},
+		{"video empty prompt", "outfit_video", oneImage, `,"prompt":"","motion_tips":"turn left"`, false, false},
+		{"video experiment", "outfit_video", oneImage, `,"prompt":"walk","motion_tips":"turn left","fps":"24","duration":"4.5","audio":"False"`, true, true},
+		{"video invalid fps", "outfit_video", oneImage, `,"prompt":"walk","fps":"fast"`, true, false},
+		{"video invalid duration", "outfit_video", oneImage, `,"prompt":"walk","duration":"NaN"`, true, false},
+		{"video invalid audio", "outfit_video", oneImage, `,"prompt":"walk","audio":"maybe"`, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			schema, err := Seed(tc.protocol)
+			if err != nil {
+				t.Fatal(err)
+			}
+			input := json.RawMessage(`{"images":` + tc.images + tc.fields + "}")
+			if _, err := Validate(schema, input, tc.experimental); (err == nil) != tc.valid {
+				t.Fatalf("valid=%v: %v", tc.valid, err)
+			}
+		})
 	}
 }
 

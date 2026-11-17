@@ -77,7 +77,7 @@ func TestAdminViewsReadSharedRequestWithoutInput(t *testing.T) {
 	}
 	base := startHTTPServer(t, httpapi.New(b, runtime, nil))
 	// 从生成入口受理，确认按模型键配置的两单位确实进入账本并用于预留。
-	submit := `{"input":{"images":[{"mime_type":"image/png","data":"eA=="}]},"metadata":{"trace_id":"trace-for-ops"}}`
+	submit := `{"input":{"prompt":"walk","images":[{"mime_type":"image/png","data":"eA=="}]},"metadata":{"trace_id":"trace-for-ops"}}`
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, base+"/v1/gateway/requests/"+spec.ModelKey, strings.NewReader(submit))
 	if err != nil {
 		t.Fatal(err)
@@ -159,7 +159,7 @@ func TestAdminViewsReadSharedRequestWithoutInput(t *testing.T) {
 	if err := json.Unmarshal(detail, &task); err != nil || task.TraceID != "trace-for-ops" ||
 		task.State != "succeeded" || task.Result == nil || len(task.Result.Files) != 1 || task.SlotReserved ||
 		strings.Contains(string(detail), "eA==") || strings.Contains(string(detail), "request_payload") ||
-		!strings.Contains(string(detail), `"parameters":{}`) || !strings.Contains(string(detail), `"role":"image"`) {
+		!strings.Contains(string(detail), `"parameters":{"prompt":"walk"}`) || !strings.Contains(string(detail), `"role":"image"`) {
 		t.Fatalf("invalid detail %s, error %v", detail, err)
 	}
 }

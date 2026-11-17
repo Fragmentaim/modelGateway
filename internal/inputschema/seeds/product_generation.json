@@ -34,15 +34,39 @@
     },
     "garment_name": {
       "type": "string",
-      "description": "衣物名称"
+      "description": "衣物名称",
+      "maxLength": 128,
+      "pattern": "[^\\t\\n\\v\\f\\r \\x1c-\\x1f\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]",
+      "not": {
+        "pattern": "\\x00|[^\\t\\n\\v\\f\\r \\x1c-\\x1f\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000][\\s\\S]*[\\r\\n][\\s\\S]*[^\\t\\n\\v\\f\\r \\x1c-\\x1f\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]"
+      }
     },
     "garment_role": {
       "type": "string",
-      "description": "衣物角色"
+      "description": "衣物角色",
+      "enum": [
+        "outfit",
+        "shoes",
+        "bag",
+        "accessory::ear",
+        "accessory::head",
+        "accessory::hair",
+        "accessory::eye",
+        "accessory::neck",
+        "accessory::chest",
+        "accessory::wrist",
+        "accessory::hand",
+        "accessory::finger",
+        "belt",
+        "clothing::top/full",
+        "clothing::bottom",
+        "accessory::other"
+      ]
     }
   },
   "required": [
-    "images"
+    "images",
+    "garment_name"
   ],
   "additionalProperties": false
 }

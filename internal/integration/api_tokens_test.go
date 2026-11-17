@@ -84,7 +84,7 @@ func TestAPITokensLifecycle(t *testing.T) {
 	call(replica, "GET", "/v1/models/"+spec.ModelKey, revealed.Token+"bad", "", 401)
 	// 真实受理覆盖凭据归属，不需要模型执行器或 MQ 才能证明入队事实。
 	id := uuid.NewString()
-	req, _ := http.NewRequest("POST", base+"/v1/gateway/requests/"+spec.ModelKey, strings.NewReader(`{"input":{"images":[{"mime_type":"image/png","data":"eA=="}]}}`))
+	req, _ := http.NewRequest("POST", base+"/v1/gateway/requests/"+spec.ModelKey, strings.NewReader(`{"input":{"prompt":"walk","images":[{"mime_type":"image/png","data":"eA=="}]}}`))
 	req.Header.Set("Authorization", "Bearer "+revealed.Token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Idempotency-Key", id)

@@ -34,11 +34,34 @@
     },
     "garment_name": {
       "type": "string",
-      "description": "衣物名称"
+      "description": "衣物名称",
+      "maxLength": 128,
+      "pattern": "[^\\t\\n\\v\\f\\r \\x1c-\\x1f\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]",
+      "not": {
+        "pattern": "\\x00|[^\\t\\n\\v\\f\\r \\x1c-\\x1f\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000][\\s\\S]*[\\r\\n][\\s\\S]*[^\\t\\n\\v\\f\\r \\x1c-\\x1f\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]"
+      }
     },
     "garment_role": {
       "type": "string",
-      "description": "衣物角色"
+      "description": "衣物角色",
+      "enum": [
+        "outfit",
+        "shoes",
+        "bag",
+        "accessory::ear",
+        "accessory::head",
+        "accessory::hair",
+        "accessory::eye",
+        "accessory::neck",
+        "accessory::chest",
+        "accessory::wrist",
+        "accessory::hand",
+        "accessory::finger",
+        "belt",
+        "clothing::top/full",
+        "clothing::bottom",
+        "accessory::other"
+      ]
     },
     "bbox": {
       "type": "array",
@@ -50,46 +73,82 @@
     },
     "bbox_format": {
       "type": "string",
-      "description": "bbox 坐标格式"
+      "description": "bbox 坐标格式",
+      "enum": [
+        "auto",
+        "pixel_xyxy",
+        "normalized_xyxy"
+      ]
     },
     "parse_labels": {
       "type": "object",
       "additionalProperties": {
         "type": "string"
-      }
+      },
+      "minProperties": 1
     }
   },
   "required": [
-    "images"
+    "images",
+    "garment_name"
   ],
   "additionalProperties": false,
-  "anyOf": [
+  "oneOf": [
     {
+      "required": [
+        "bbox"
+      ],
+      "properties": {
+        "images": {
+          "maxItems": 1
+        }
+      },
+      "not": {
+        "required": [
+          "parse_labels"
+        ]
+      }
+    },
+    {
+      "required": [
+        "garment_role",
+        "parse_labels"
+      ],
       "properties": {
         "images": {
           "minItems": 2
         }
+      },
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "bbox"
+            ]
+          },
+          {
+            "required": [
+              "bbox_format"
+            ]
+          }
+        ]
       }
-    },
-    {
-      "required": [
-        "bbox"
-      ]
-    },
-    {
-      "required": [
-        "parse_labels"
-      ]
     }
   ],
   "x-experimental-properties": {
     "prompt": {
       "type": "string",
-      "description": "仅实验凭据可覆盖的生成参数"
+      "description": "仅实验凭据可覆盖的生成参数",
+      "maxLength": 4096,
+      "pattern": "[^\\t\\n\\v\\f\\r \\x1c-\\x1f\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]",
+      "not": {
+        "pattern": "\\x00"
+      }
     },
     "use_pe": {
       "type": "string",
-      "description": "仅实验凭据可覆盖的生成参数"
+      "description": "仅实验凭据可覆盖的生成参数",
+      "pattern": "^([Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])$"
     }
   }
 }

@@ -34,17 +34,28 @@
     },
     "gender": {
       "type": "string",
-      "description": "原样交给模型服务的性别参数"
+      "description": "原样交给模型服务的性别参数",
+      "enum": [
+        "male",
+        "female",
+        "unknown"
+      ]
     }
   },
   "required": [
-    "images"
+    "images",
+    "gender"
   ],
   "additionalProperties": false,
   "x-experimental-properties": {
     "prompt": {
       "type": "string",
-      "description": "仅实验凭据可覆盖的生成参数"
+      "description": "仅实验凭据可覆盖的生成参数",
+      "maxLength": 4096,
+      "pattern": "[^\\t\\n\\v\\f\\r \\x1c-\\x1f\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]",
+      "not": {
+        "pattern": "\\x00"
+      }
     }
   }
 }

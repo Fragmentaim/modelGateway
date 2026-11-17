@@ -40,12 +40,12 @@ func TestNativeBackendsThroughGateway(t *testing.T) {
 func testNativeBackendsThroughGateway(t *testing.T, byModel bool, kind string) {
 	// 新 key 不出现在任何生产代码中，覆盖登记、探活、原生调用和结果持久化。
 	imageKey, videoKey := map[string]string{protocol.WardrobeProtocol: protocol.WardrobeModel, protocol.BodyProtocol: protocol.BodyModel, protocol.OutfitProtocol: protocol.OutfitModel}[kind], protocol.VideoModel
-	triggerField, triggerValue := "prompt", "try on"
+	imageField, imageValue := "prompt", "try on"
 	if kind == protocol.BodyProtocol {
-		triggerField, triggerValue = "gender", "female"
+		imageField, imageValue = "gender", "female"
 	}
 	if kind == protocol.WardrobeProtocol {
-		triggerField = "garment_name"
+		imageField = "garment_name"
 	}
 	route := map[string]string{protocol.WardrobeProtocol: "garment_extraction", protocol.BodyProtocol: "body_model", protocol.OutfitProtocol: "vton"}[kind]
 	generation := json.RawMessage(`{"model_version":{"checkpoint":"WGDL/test","revision":"pinned-commit"},"effective_prompt":"最终 prompt without hanger","pe_status":"fallback","pe_fallback_reason":"invalid_template","parameters":{"seed":0,"width":768,"height":1024,"steps":8,"guidance":1,"output_format":"png"},"timings":{"queue_ms":0,"pe_ms":0,"inference_ms":12.5,"total_ms":null},"retries":{"pe":{"count":1,"last_reason":"ValueError"},"generation":{"count":2,"last_reason":"person_count_not_one"}}}`)
@@ -98,7 +98,7 @@ func testNativeBackendsThroughGateway(t *testing.T, byModel bool, kind string) {
 					_, _ = io.WriteString(w, `{"status":"ok","workers":[{"healthy":true}]}`)
 				case "POST /v2/images/" + route:
 					imageCalls.Add(1)
-					switch r.FormValue(triggerField) {
+					switch r.FormValue("trace_id") {
 					case "reject":
 						w.WriteHeader(http.StatusUnprocessableEntity)
 						return
@@ -124,7 +124,7 @@ func testNativeBackendsThroughGateway(t *testing.T, byModel bool, kind string) {
 					if r.Header.Get("X-Gateway-Request-ID") != imageID ||
 						r.Header.Get("X-Gateway-Dispatch") != "immediate" ||
 						r.Header.Get("X-Trace-ID") != "test-trace" || r.Header.Get("X-User-ID") != "test-user" ||
-						r.FormValue("trace_id") != "test-trace" || r.FormValue(triggerField) != triggerValue {
+						r.FormValue("trace_id") != "test-trace" || r.FormValue(imageField) != imageValue {
 						t.Error("image request lost model fields or metadata")
 					}
 					if kind == protocol.OutfitProtocol {
@@ -383,7 +383,7 @@ func testNativeBackendsThroughGateway(t *testing.T, byModel bool, kind string) {
 			if !bytes.Equal(before, after) || imageCalls.Load() != 1 {
 				t.Fatal("replay changed metadata or repeated generation")
 			}
-			videoBody := `{"input":{"motion_tips":"turn","images":[{"mime_type":"image/png","data":"Zmlyc3QgZnJhbWU="}]}}`
+			videoBody := `{"input":{"prompt":"walk","motion_tips":"turn","images":[{"mime_type":"image/png","data":"Zmlyc3QgZnJhbWU="}]}}`
 			videoPath := "/v1/gateway/requests/" + videoKey
 			call(http.MethodPost, videoPath, apiToken, videoIDs[0], videoBody, 202)
 			waitForNativeTest(t, "first GPU reservation", func() bool {
@@ -416,22 +416,21 @@ func testNativeBackendsThroughGateway(t *testing.T, byModel bool, kind string) {
 			}
 
 			if provider == "oss" {
-				for _, rejection := range []struct{ prompt, code string }{
+				for _, rejection := range []struct{ trace, code string }{
 					{"reject", "model_rejected"},
 					{"route-not-found", "native_route_unavailable"},
 				} {
 					id := uuid.NewString()
-					call(http.MethodPost, imagePath, apiToken, id, strings.Replace(imageBody, triggerValue, rejection.prompt, 1), 502)
+					call(http.MethodPost, imagePath, apiToken, id, strings.Replace(imageBody, "test-trace", rejection.trace, 1), 502)
 					row, err := db.Request.Get(t.Context(), id)
 					if err != nil || row.State != request.StateFailed || row.SlotReserved || row.ErrorCode != rejection.code {
-						t.Fatalf("%s did not finish and release its slot: %v (%v)", rejection.prompt, row, err)
+						t.Fatalf("%s did not finish and release its slot: %v (%v)", rejection.trace, row, err)
 					}
 				}
 			}
 			// 明确的 4xx 拒绝结束请求并归还名额，重提同一请求只返回原错误。
-			unknownPrompt := "unknown-404"
 			unknownID := uuid.NewString()
-			unknownBody := strings.Replace(imageBody, triggerValue, unknownPrompt, 1)
+			unknownBody := strings.Replace(imageBody, "test-trace", "unknown-404", 1)
 			callsBefore := imageCalls.Load()
 			call(http.MethodPost, imagePath, apiToken, unknownID, unknownBody, 502)
 			call(http.MethodPost, imagePath, apiToken, unknownID, unknownBody, 502)
@@ -634,7 +633,7 @@ func TestNativeImageWaitTimeoutReleasesSlotAfterExecution(t *testing.T) {
 		err      error
 	}
 	submit := func(id string) outcome {
-		body := `{"input":{"images":[{"mime_type":"image/png","data":"eA=="},{"mime_type":"image/png","data":"eQ=="}]}}`
+		body := `{"input":{"prompt":"try on","images":[{"mime_type":"image/png","data":"eA=="},{"mime_type":"image/png","data":"eQ=="}]}}`
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, base+"/v1/gateway/requests/"+protocol.OutfitModel, strings.NewReader(body))
 		if err != nil {
 			return outcome{err: err}

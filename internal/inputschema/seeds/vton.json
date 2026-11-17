@@ -34,17 +34,24 @@
     },
     "prompt": {
       "type": "string",
-      "description": "试衣提示词"
+      "description": "试衣提示词",
+      "maxLength": 20000,
+      "pattern": "[^\\t\\n\\v\\f\\r \\x1c-\\x1f\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]",
+      "not": {
+        "pattern": "\\x00"
+      }
     }
   },
   "required": [
-    "images"
+    "images",
+    "prompt"
   ],
   "additionalProperties": false,
   "x-experimental-properties": {
     "use_pe": {
       "type": "string",
-      "description": "仅实验凭据可覆盖的生成参数"
+      "description": "仅实验凭据可覆盖的生成参数",
+      "pattern": "^([Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])$"
     }
   }
 }
