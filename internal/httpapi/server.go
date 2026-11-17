@@ -16,6 +16,7 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/google/uuid"
 	"github.com/wgdl666/modelGateway/ent"
 	"github.com/wgdl666/modelGateway/ent/request"
 	"github.com/wgdl666/modelGateway/internal/config"
@@ -99,6 +100,11 @@ func (s *Server) HTTPServer(listener net.Listener) *server.Hertz {
 	h.GET("/v1/admin/request-stats", s.auth("admin", s.requestStats))
 	h.GET("/v1/admin/requests/:id/media", s.auth("request_read", s.requestMedia))
 	h.GET("/v1/admin/requests/:id", s.auth("request_read", s.requestDetail))
+	h.POST("/v1/images/generations", s.auth("api", s.openAIGenerations))
+	h.POST("/v1/images/edits", s.auth("api", s.openAIEdits))
+	h.POST("/v1/videos", s.auth("api", s.openAIVideos))
+	h.GET("/v1/videos/:id/content", s.auth("api", s.openAIVideoContent))
+	h.GET("/v1/videos/:id", s.auth("api", s.openAIVideo))
 	h.POST("/v1/gateway/requests/cancel", s.auth("api", s.cancelRequest))
 	h.POST("/v1/gateway/requests/:model_key", s.auth("api", s.submit))
 	h.GET("/v1/gateway/requests", s.auth("api", s.get))
@@ -176,6 +182,8 @@ func writeError(c *app.RequestContext, status int, code, message, id string) {
 
 func storeError(c *app.RequestContext, err error, id string) {
 	switch {
+	case errors.Is(err, store.ErrInputSchemaMissing):
+		writeError(c, 400, "input_schema_required", "register an explicit model input_schema", id)
 	case errors.Is(err, store.ErrResourceGroupNotFound):
 		writeError(c, 404, "resource_group_not_found", err.Error(), id)
 	case errors.Is(err, store.ErrResourceMachineNotFound):
@@ -224,7 +232,7 @@ func readBody(c *app.RequestContext, limit int64, value any, id string) ([]byte,
 
 func readPayload(c *app.RequestContext, limit int64) ([]byte, error) {
 	reader := c.Request.BodyStream()
-	if reader == nil {
+	if !c.Request.IsBodyStream() {
 		reader = bytes.NewReader(c.Request.Body())
 	}
 	return io.ReadAll(io.LimitReader(reader, limit+1))
@@ -348,9 +356,25 @@ func (s *Server) instances(ctx context.Context, c *app.RequestContext) {
 }
 
 func requestID(c *app.RequestContext) (string, bool) {
+	return bindRequestID(c, true)
+}
+
+// OpenAI SDK 不默认发送 Idempotency-Key。缺省时生成一个新任务；调用方传入时重试仍落在同一次受理。
+func optionalRequestID(c *app.RequestContext) (string, bool) {
+	return bindRequestID(c, false)
+}
+
+func bindRequestID(c *app.RequestContext, required bool) (string, bool) {
+	if len(c.Request.URI().QueryString()) != 0 || len(c.GetHeader("X-Model-Version")) != 0 || len(c.GetHeader("X-Routing-Key")) != 0 {
+		writeError(c, 400, "invalid_request", "request cannot carry extra routing selectors", "")
+		return "", false
+	}
 	id := string(c.GetHeader("Idempotency-Key"))
-	if !protocol.ValidID(id) || len(c.Request.URI().QueryString()) != 0 || len(c.GetHeader("X-Model-Version")) != 0 || len(c.GetHeader("X-Routing-Key")) != 0 {
-		writeError(c, 400, "invalid_request", "supply a UUID Idempotency-Key without extra routing selectors", "")
+	if id == "" && !required {
+		id = uuid.NewString()
+	}
+	if !protocol.ValidID(id) {
+		writeError(c, 400, "invalid_request", "Idempotency-Key must be a UUID", "")
 		return "", false
 	}
 	c.Header("X-Gateway-Request-ID", id)
@@ -380,29 +404,17 @@ func (s *Server) submit(ctx context.Context, c *app.RequestContext) {
 	}
 	cfg := requestConfig(ctx)
 	var input protocol.Submission
-	raw, ok := readBody(c, cfg.MaxBodyBytes, &input, id)
-	if !ok {
+	if _, ok := readBody(c, cfg.MaxBodyBytes, &input, id); !ok {
 		<-s.uploads
 		return
 	}
 	// 模型存在性、输出能力和具体字段在同一次受理内校验，不依赖调用方预查询。
-	if input.Output != "" && (!protocol.MediaProtocol(kind) || ((input.Output != "image" && input.Output != "video") || (input.Output == "video") != (kind == protocol.VideoProtocol))) {
+	if input.Output != "" && (!protocol.MediaProtocol(kind) || ((input.Output != "image" && input.Output != "video") || (input.Output == "video") != protocol.VideoOutput(kind))) {
 		<-s.uploads
 		writeError(c, 400, "invalid_protocol", "model protocol does not match the requested output", id)
 		return
 	}
-	var extra []byte
-	fields, err := inputschema.Validate(definition.InputSchema, input.Input, c.GetBool(experimentalCredential))
-	if err == nil && protocol.MediaProtocol(kind) {
-		var images []protocol.InputImage
-		images, err = protocol.DecodeImageFields(fields)
-		if err == nil {
-			extra, err = protocol.InputMediaExtra(protocol.InputMedia(kind, images))
-		}
-	}
-	if err == nil {
-		input.Metadata, err = freezeMetadata(ctx, c, input.Metadata)
-	}
+	fields, extra, err := validateAdmission(ctx, c, definition, &input)
 	if err != nil {
 		<-s.uploads
 		writeError(c, 400, "invalid_input", err.Error(), id)
@@ -413,34 +425,75 @@ func (s *Server) submit(ctx context.Context, c *app.RequestContext) {
 		s.submitSynchronousInput(ctx, c, model, kind, input.Input, fields, input.Metadata)
 		return
 	}
-	raw, err = json.Marshal(input)
+	task, ok := s.admitMedia(ctx, c, id, model, kind, input, extra)
+	if !ok {
+		return
+	}
+	if protocol.VideoOutput(kind) {
+		writeJSON(c, 202, protocol.Response{RequestID: id, TraceID: task.TraceID, ModelKey: model, State: string(task.State)})
+		return
+	}
+	s.waitImage(ctx, c, id)
+}
+
+// validateAdmission is shared by the unified and OpenAI transports. Model schemas
+// govern both paths; protocol checks only enforce the executor's wire contract.
+func validateAdmission(ctx context.Context, c *app.RequestContext, definition store.ModelDefinition, input *protocol.Submission) (map[string]any, []byte, error) {
+	fields, err := inputschema.Validate(definition.InputSchema, input.Input, c.GetBool(experimentalCredential))
+	if err != nil {
+		return nil, nil, err
+	}
+	kind := definition.Protocol
+	if protocol.GenerationProtocol(kind) {
+		if err := protocol.ValidateGenerationInput(kind, input.Input); err != nil {
+			return nil, nil, err
+		}
+	}
+	var extra []byte
+	if protocol.MediaProtocol(kind) {
+		var images []protocol.InputImage
+		if _, present := fields["images"]; present || !protocol.GenerationProtocol(kind) {
+			images, err = protocol.DecodeImageFields(fields)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+		extra, err = protocol.InputMediaExtra(protocol.InputMedia(kind, images))
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	input.Metadata, err = freezeMetadata(ctx, c, input.Metadata)
+	return fields, extra, err
+}
+
+// The caller holds an upload slot. Release it before waiting for generation.
+func (s *Server) admitMedia(ctx context.Context, c *app.RequestContext, id, model, kind string, input protocol.Submission, extra []byte) (*ent.Request, bool) {
+	raw, err := json.Marshal(input)
 	if err != nil {
 		<-s.uploads
 		writeError(c, 400, "invalid_input", "could not encode input", id)
-		return
+		return nil, false
 	}
+	cfg := requestConfig(ctx)
 	task, err := s.store.Admit(ctx, store.Admission{
 		ID: id, ModelKey: model, Protocol: kind, Payload: raw, Input: input.Input, Extra: extra,
-		// 占用单位随受理落库，后续配置更新不会改变已排队请求的重量。
 		APITokenID: c.GetString(apiTokenID), TraceID: input.Metadata.TraceID, Units: max(1, cfg.UnitsByModelKey[model]),
 		MaxWaiting: cfg.MaxWaiting, BackendTimeout: cfg.BackendTimeout,
 	})
 	<-s.uploads
 	if err != nil {
 		storeError(c, err, id)
-		return
+		return nil, false
 	}
-	// 视频调用方通过查询接口取终态，提交请求无需保持连接。
-	if kind == protocol.VideoProtocol {
-		writeJSON(c, 202, protocol.Response{RequestID: id, TraceID: task.TraceID, ModelKey: model, State: string(task.State)})
-		return
-	}
-	// 响应等待不持有原始上传，也不取消已经提交到 PG 的生成。
-	s.waitImage(ctx, c, id)
+	return task, true
 }
 
 func taskResponse(task *ent.Request) protocol.Response {
-	response := protocol.Response{RequestID: task.ID, TraceID: task.TraceID, ModelKey: task.ModelKey, State: string(task.State)}
+	response := protocol.Response{
+		RequestID: task.ID, TraceID: task.TraceID, ModelKey: task.ModelKey,
+		State: string(task.State),
+	}
 	if task.ErrorCode != "" {
 		response.Error = &protocol.RequestError{Code: task.ErrorCode, Message: task.ErrorMessage}
 		if task.DispatchAttempts > 0 {
@@ -459,7 +512,14 @@ func taskResponse(task *ent.Request) protocol.Response {
 }
 
 func (s *Server) waitImage(ctx context.Context, c *app.RequestContext, id string) {
-	// 图片生成耗时较长，每秒检查终态，减少等待期间的账本读取。
+	task, ok := s.awaitTask(ctx, c, id)
+	if !ok {
+		return
+	}
+	writeJSON(c, 200, taskResponse(task))
+}
+
+func (s *Server) awaitTask(ctx context.Context, c *app.RequestContext, id string) (*ent.Request, bool) {
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
@@ -468,7 +528,7 @@ func (s *Server) waitImage(ctx context.Context, c *app.RequestContext, id string
 			if ctx.Err() == nil {
 				storeError(c, err, id)
 			}
-			return
+			return nil, false
 		}
 		c.Header("X-Model-Key", task.ModelKey)
 		if task.InstanceID != "" {
@@ -476,19 +536,18 @@ func (s *Server) waitImage(ctx context.Context, c *app.RequestContext, id string
 		}
 		switch task.State {
 		case request.StateSucceeded:
-			writeJSON(c, 200, taskResponse(task))
-			return
+			return task, true
 		case request.StateFailed:
 			writeError(c, task.ErrorStatus, task.ErrorCode, task.ErrorMessage, id)
-			return
+			return nil, false
 		}
 		if !time.Now().Before(task.DeadlineAt) {
 			writeError(c, 504, "response_wait_timeout", "response wait timed out; query the same request ID", id)
-			return
+			return nil, false
 		}
 		select {
 		case <-ctx.Done():
-			return
+			return nil, false
 		case <-ticker.C:
 		}
 	}

@@ -2,7 +2,16 @@
 
 一个模型网关可运行多个 Go 副本，共享 PostgreSQL 和 RabbitMQ。Hertz 处理 HTTP，Ent 定义 `resource_groups`、`model_instances` 和 `requests`。每个副本启动两个 RabbitMQ 消费者。模型执行端确认终态并上传成品，ModelHub 使用 OSS/S3 对象引用读取。
 
-## 调用协议
+## 通用图像和视频生成
+
+- 图像：`POST /v1/images/generations`，JSON 输入；`POST /v1/images/edits` 为参考图 multipart 上传入口。
+- 视频：`POST /v1/videos`，独立的视频输入协议；通过 `GET /v1/videos/{id}` 查询、`GET /v1/videos/{id}/content` 下载。
+- `model` 直接选择登记模型，`prompt`、参考图和生成参数传给模型服务。网关不提供专家或业务能力，也不绑定模型名、画布或业务提示词。
+- 模型登记为 `image_generation` / `video_generation` 后，Worker 直接调用对应的通用模型接口。新增兼容模型只需登记，无需修改路由代码。
+
+请求示例、后端契约、注册和迁移要求见 [通用生成接口](docs/GENERATION_API.md)。
+
+## 兼容调用协议
 
 统一调用入口为 `POST /v1/gateway/requests/{model_key}`，承接图片、视频、对话和视觉模型。请求使用 `Authorization: Bearer <api_token>`、`Content-Type: application/json` 和 UUID `Idempotency-Key`。UUID 同时是请求表主键和模型端查询 ID。
 
@@ -18,7 +27,7 @@
 
 字段不符合 Schema 时返回 HTTP 400、`error.code=invalid_input`。`error.message` 只提供输入字段的 JSON Pointer 和 Schema 规则关键字，不回显图片或其他输入值；根对象的 Pointer 为空字符串。客户端按 HTTP 状态和 `error.code` 判断结果，message 用于诊断。
 
-同模型多个实例保留重复 schema。管理凭据调用 `PUT /v1/admin/models/{model_key}/schema`，请求 `{"input_schema":{...}}`，在一个事务里更新该模型全部登记；新副本继承已有定义，不按协议重置。首次登记可提交 input_schema，省略时使用协议种子。定义只允许文档内部 `$ref`，不加载远程或本机文件。
+同模型多个实例保留重复 schema。管理凭据调用 `PUT /v1/admin/models/{model_key}/schema`，请求 `{"input_schema":{...}}`，在一个事务里更新该模型全部登记；新副本继承已有定义，不按协议重置。业务协议首次登记可提交 input_schema，省略时使用协议种子；`image_generation` / `video_generation` 首次登记必须显式提交模型 Schema。定义只允许文档内部 `$ref`，不加载远程或本机文件。
 
 **发布前先执行 [input_schema 迁移](deploy/migrations/model-input-schema.sql)**，回填已有 13 种协议的初始契约；已有自定义定义不会被覆盖。种子用于迁移和首次登记，运行时缺少定义返回 503。`x-category` 提供目录类别；`x-experimental-properties` 只对实验凭据展开，对外 schema 与当前凭据实际校验规则一致。
 

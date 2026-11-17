@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"reflect"
@@ -60,12 +61,20 @@ func (s *Store) Register(ctx context.Context, spec protocol.Instance, reportedAr
 			}
 			if len(spec.InputSchema) > 0 {
 				var left, right any
-				if json.Unmarshal(spec.InputSchema, &left) != nil || json.Unmarshal(existing.InputSchema, &right) != nil || !reflect.DeepEqual(left, right) {
+				decode := func(raw []byte, out *any) error {
+					decoder := json.NewDecoder(bytes.NewReader(raw))
+					decoder.UseNumber()
+					return decoder.Decode(out)
+				}
+				if decode(spec.InputSchema, &left) != nil || decode(existing.InputSchema, &right) != nil || !reflect.DeepEqual(left, right) {
 					return ErrConflict
 				}
 			}
 			spec.InputSchema = existing.InputSchema
 		} else if len(spec.InputSchema) == 0 {
+			if protocol.GenerationProtocol(spec.Protocol) {
+				return ErrInputSchemaMissing
+			}
 			spec.InputSchema, err = inputschema.Seed(spec.Protocol)
 			if err != nil {
 				return err
