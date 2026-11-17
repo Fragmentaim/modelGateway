@@ -78,7 +78,7 @@ func TestAdmissionRejectsUnknownAndMismatchedModelsBeforeQueue(t *testing.T) {
 	}
 }
 
-func TestMediaAdmissionRejectsOldModelHubEnvelope(t *testing.T) {
+func TestMediaAdmissionRejectsMixedModelHubEnvelope(t *testing.T) {
 	ledger, _, db := stores(t)
 	spec := testInstance(protocol.OutfitModel, "http://127.0.0.1:8001", 1)
 	registerReady(t, ledger, spec)
@@ -88,7 +88,7 @@ func TestMediaAdmissionRejectsOldModelHubEnvelope(t *testing.T) {
 	}
 	base := startHTTPServer(t, httpapi.New(ledger, runtime, nil))
 	resp := sendSynchronous(t, base, "/v1/gateway/requests/"+spec.ModelKey, "application/json",
-		`{"input":{"images":[{"mime_type":"image/png","data":"eA=="},{"mime_type":"image/png","data":"eA=="}],"prompt":"try on","text":"try on","model_traits":{}}}`, uuid.NewString())
+		`{"input":{"images":[{"mime_type":"image/png","data":"eA=="},{"mime_type":"image/png","data":"eA=="}],"prompt":"try on","prompt":"injected", "text":"try on","model_traits":{}}}`, uuid.NewString())
 	raw, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(string(raw), "invalid_input") {

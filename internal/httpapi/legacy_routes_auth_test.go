@@ -10,7 +10,7 @@ import (
 	"github.com/wgdl666/modelGateway/internal/config"
 )
 
-func TestRetiredInferenceRoutesAreNotRegistered(t *testing.T) {
+func TestLegacyInferenceRoutesRemainAuthenticated(t *testing.T) {
 	cfg := config.Config{APIToken: strings.Repeat("a", 24), AdminToken: strings.Repeat("b", 24),
 		AllowedNetworks: []string{"172.31.0.0/16"}, AllowedPorts: []string{"8001"},
 		VisionAddr: "172.31.43.7:18280", VLMAddr: "172.31.3.219:30332", DecisionAddr: "172.31.3.219:8874"}
@@ -32,9 +32,9 @@ func TestRetiredInferenceRoutesAreNotRegistered(t *testing.T) {
 		"/v1/vision/lens_distortion_correction/correct",
 	} {
 		t.Run(path, func(t *testing.T) {
-			got := ut.PerformRequest(server.Engine, http.MethodPost, path, nil, ut.Header{Key: "Authorization", Value: "Bearer " + cfg.APIToken})
-			if got.Code != http.StatusNotFound {
-				t.Fatalf("retired route returned %d", got.Code)
+			got := ut.PerformRequest(server.Engine, http.MethodPost, path, nil, ut.Header{Key: "Authorization", Value: "Bearer invalid"})
+			if got.Code != http.StatusUnauthorized {
+				t.Fatalf("legacy route authentication returned %d", got.Code)
 			}
 		})
 	}

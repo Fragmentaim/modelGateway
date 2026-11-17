@@ -118,7 +118,7 @@ POST 请求使用相同的 JSON 输入契约，`model` 保持登记键。模型�
 
 现有大小限制继续生效：默认请求体 64 MiB、图像模型响应 64 MiB、图像下载响应解码后的总量不超过 64 MiB、视频成品 200 MiB。multipart 最多 16 个字段，各文本字段最多 4096 字节；较大的提示词或参数对象可使用 JSON 入口。
 
-现有 `/v1/gateway/requests/{model_key}` 和业务执行协议保留，也可提交通用协议的 `input`，继续返回原任务/对象引用格式。已删除的 `text`/`model_traits` 输入信封不恢复。通用接口不提供 `expert`，也不接受业务字段；`parameters` 按该模型 Schema 的白名单校验。现有模型服务需要实现以上契约并用通用协议登记，不能只更改登记标签而继续提供旧业务接口。
+现有 `/v1/gateway/requests/{model_key}` 和业务执行协议保留，也可提交通用协议的 `input`，继续返回原任务/对象引用格式。为支持旧 ModelHub 副本滚动升级，四种业务图片协议暂时兼容 `text`/`model_traits` 信封，展开后按同一数据库 Schema 校验并使用同一幂等身份。新旧格式不能混合；通用生成协议不接受该信封。通用接口不提供 `expert`，也不接受业务字段；`parameters` 按该模型 Schema 的白名单校验。现有模型服务需要实现以上契约并用通用协议登记，不能只更改登记标签而继续提供旧业务接口。
 
 本轮复用统一入口版本的 `model_instances.input_schema` 字段，不新增第二套模型定义表。从旧部署升级时仍必须执行 [Schema 迁移](../deploy/migrations/model-input-schema.sql)，该脚本只给原业务协议回填种子，不会推断通用模型能力。通用模型首次登记必须显式提供 Schema；后续副本可继承已存定义，冲突返回 409。历史通用登记若缺少 Schema，须通过管理接口显式补齐，再受理请求。先升级所有 Gateway/Worker，再开放新模型键；完整顺序见 [首轮整合与发布](INTEGRATION_ROLLOUT.md)。
 

@@ -9,4 +9,4 @@ cd "$(dirname "$0")/../.."
 : "${MODELHUB_CONTRACT_DIR:?Use the integrated wgModelHub checkout}"
 test -s "$VMIND_IMAGE_MODEL_DEFINITIONS"
 test -f "$MODELHUB_CONTRACT_DIR/internal/infra/vworldimage/gateway_contract_test.go"
-go test -race ./internal/integration -run '^(TestVMindImageContract|TestModelHubAgainstUnifiedGateway|TestGenericRoutesUseStoredSchemaBeforeAdmission|TestGenericAndBusinessSharePhysicalGPUCapacity|TestSchemaReplicaComparisonPreservesLargeIntegerConstraints)$' -count=1 -v
+go test -race ./internal/integration -run '^(TestOldAndCanonicalImageInputsReplaySameTask|TestLegacyRoutesUseRegisteredTargets|TestMediaAdmissionRejectsMixedModelHubEnvelope|TestVMindImageContract|TestModelHubAgainstUnifiedGateway|TestGenericRoutesUseStoredSchemaBeforeAdmission|TestGenericAndBusinessSharePhysicalGPUCapacity|TestSchemaReplicaComparisonPreservesLargeIntegerConstraints)$' -count=1 -v

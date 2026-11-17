@@ -108,6 +108,11 @@ func (s *Server) HTTPServer(listener net.Listener) *server.Hertz {
 	h.POST("/v1/gateway/requests/cancel", s.auth("api", s.cancelRequest))
 	h.POST("/v1/gateway/requests/:model_key", s.auth("api", s.submit))
 	h.GET("/v1/gateway/requests", s.auth("api", s.get))
+	h.POST(chatCompletionsPath, s.auth("api", s.chatCompletions))
+	h.POST(decisionPredictPath, s.auth("api", s.decisionPredict))
+	for _, route := range visionRoutes {
+		h.POST("/v1/vision"+route.path, s.auth("api", s.visionPredict(route)))
+	}
 	h.GET("/v1/vision/health", s.auth("admin", s.visionHealth))
 	return h
 }
@@ -413,6 +418,17 @@ func (s *Server) submit(ctx context.Context, c *app.RequestContext) {
 		<-s.uploads
 		writeError(c, 400, "invalid_protocol", "model protocol does not match the requested output", id)
 		return
+	}
+	// Accept the production ModelHub envelope until every old replica has drained.
+	// Both forms then use the same schema, stored input and idempotency identity.
+	if kind == protocol.BodyProtocol || kind == protocol.ClothGenProtocol || kind == protocol.WardrobeProtocol || kind == protocol.OutfitProtocol {
+		normalized, err := protocol.NormalizeMediaInput(kind, input.Input)
+		if err != nil {
+			<-s.uploads
+			writeError(c, 400, "invalid_input", err.Error(), id)
+			return
+		}
+		input.Input = normalized
 	}
 	fields, extra, err := validateAdmission(ctx, c, definition, &input)
 	if err != nil {

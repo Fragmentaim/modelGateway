@@ -31,7 +31,7 @@
 
 **发布前先执行 [input_schema 迁移](deploy/migrations/model-input-schema.sql)**，回填已有 13 种协议的初始契约；已有自定义定义不会被覆盖。种子用于迁移和首次登记，运行时缺少定义返回 503。`x-category` 提供目录类别；`x-experimental-properties` 只对实验凭据展开，对外 schema 与当前凭据实际校验规则一致。
 
-对话 input 使用 OpenAI-compatible JSON（模型由路径指定），响应仍是原生 JSON/SSE；视觉 input 使用 JSON 和 Base64 内联图片，由 Gateway 编码成上游 multipart/JSON，响应保持原生 JSON/图片。OpenAI-compatible 种子保留扩展字段，具体模型的参数支持范围可由管理员在模型定义中收紧；schema 通过不替代上游模型的语义校验。媒体生成仍使用下面的任务结果格式。旧 `/v1/chat/completions`、`/v1/vision/...` 和 `/v1/decision/predict` 推理入口已删除，返回 404。发布时须协调切换 ModelHub 和其他调用方；原生模型执行端路径不受此变更影响。
+对话 input 使用 OpenAI-compatible JSON（模型由路径指定），响应仍是原生 JSON/SSE；视觉 input 使用 JSON 和 Base64 内联图片，由 Gateway 编码成上游 multipart/JSON，响应保持原生 JSON/图片。OpenAI-compatible 种子保留扩展字段，具体模型的参数支持范围可由管理员在模型定义中收紧；schema 通过不替代上游模型的语义校验。媒体生成仍使用下面的任务结果格式。生成整合阶段继续保留 `/v1/chat/completions`、`/v1/vision/...` 和 `/v1/decision/predict`，沿用原鉴权、上传限制、实例路由与账本。视觉/对话调用方的迁移及旧入口删除另行发布。
 
 每个 `model_key` 固定对应一种业务。输入校验、实例匹配和后端路由使用同一个键。业务含义变化时使用新键。
 
@@ -40,7 +40,7 @@
 1. 使用目标环境的 API Bearer Token 调用 `GET /v1/models` 选择模型，再用 `GET /v1/models/{model_key}` 读取该环境的完整定义。
 2. 按 `input_schema` 构造 JSON，携带 UUID `Idempotency-Key` 调用 `POST /v1/gateway/requests/{model_key}`，请求体为 `{"input":{...}}`。图片字段、顺序和数量以查询到的定义为准。
 3. 读取定义的 `response_mode`：`direct` 返回模型原生 JSON/图片，聊天 `stream=true` 时返回 SSE；`task` 使用图片同步任务结果或视频 202+查询。任务查询使用 `GET /v1/gateway/requests` 和原 UUID，结果在 `result.files`，文件可通过带 API 凭据的 `GET /v1/admin/requests/{request_id}/media?kind=output&index=0` 读取。
-4. 联调环境先完成本版本部署、Schema 迁移和实例登记；旧推理入口与旧媒体信封不再接受。调用方需和 Gateway 协调切换。请求限制针对编码后的整个 JSON，Base64 约为原图的 4/3；实际预算读取环境配置，不能直接按原图字节数套用请求上限。
+4. 联调环境先完成本版本部署、Schema 迁移和实例登记；保留旧固定推理入口，并兼容生产 ModelHub 的图片 `text` / `model_traits` 信封：只展开已知四种业务图像协议，转换后仍执行同一份数据库 Schema 校验。新调用方应发送规范字段，不混合新旧格式。请求限制针对编码后的整个 JSON，Base64 约为原图的 4/3；实际预算读取环境配置，不能直接按原图字节数套用请求上限。
 
 校验库固定使用 [无用字符串复制修复](https://github.com/Fragmentaim/jsonschema/commit/32495a5894a5) 的依赖版本；补丁只在启用内容检查时构造字节，不改变 Schema 规则。上游合入同等修复后可以移除 `go.mod` 的替换。
 

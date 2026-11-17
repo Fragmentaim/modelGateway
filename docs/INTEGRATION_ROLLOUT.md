@@ -1,39 +1,38 @@
-# 首轮统一入口与通用生成整合
+# 美东生成接口整合发布
 
-本轮基线是 modelGateway PR #7 的数据库 Schema/统一受理，合入 `feat/generic-model-generation`；调用方沿用 wgModelHub PR #30。Image 合入同名通用分支并带入 PR #10 的多图验收工具，Video 保留 PR #5 的业务验收工具。#10/#5 已关闭但未合并，不能把关闭状态当作已发布。
+本次发布使用 Gateway 与 ModelHub 的 `codex/generation-rollout`。它承接已验证的 Schema/通用生成能力，并将视觉强制迁移从本批中拆出。原整合草稿包含视觉配置删除，不能直接作为本批 ModelHub 发布候选。国内 human-parser、独立风控和部署控制器不属于本批。
 
-## 契约与职责
+## 已上线与待发布
 
-| 层 | 本轮职责与保留行为 |
+- 已上线：G7e GPU2/3 的 FLUX 服装生成服务更新 PE 调用代码和版本化提示词配置。**PE 推理服务仍在 GPU0，未迁移或重启。** 生产 Gateway → GPU → S3 写入/取回及四次 PE applied 已通过，详细证据在 Image 的 `deploy/qwen_pe/production-pe-20261117.json`。
+- 待发布：Gateway 输入 Schema、模型目录、OpenAI-compatible 通用生成入口，以及 ModelHub 的规范业务 JSON 映射。
+- 待完成的生产门槛：现有 ModelHub gRPC 全链路验收。一次性 ECS 客户端已能启动，但从 ModelHub 自身安全组访问 50053 超时；正在确认既有业务方的网络入口。当前没有以该验收为由改生产服务或安全组。
+
+## 保持的契约
+
+| 层 | 本批行为 |
 |---|---|
-| 业务调用方 / ModelHub | 保留 protobuf Generate 图片、Submit/Get 视频；把业务字段转换为 Gateway 原生 JSON；不新增业务流程、提示词或参数范围的重复校验。ModelHub 仍校验协议结构并归一化错误。 |
-| Gateway 业务入口 | `/v1/gateway/requests/{model_key}` 按数据库 Schema 校验、解码媒体、鉴权、固定元数据、入账；图片同步等结果，视频 202；不恢复 text/model_traits 旧信封。 |
-| Gateway 通用入口 | `/v1/images/generations`、`/v1/images/edits`、`/v1/videos` 仅做传输适配，同样使用数据库 Schema 与共用受理函数；普通 API 凭据按模型公开 Schema 调用，业务模型的实验参数权限保持原逻辑。 |
-| Gateway 调度 | 共享原请求账本、UUID 幂等、RabbitMQ、物理 GPU 容量和结果存储。未知执行结果的重试保持实例/地址/制品归属。 |
-| Image 模型服务 | 校验已加载 profile、真实图片和运行能力；业务入口保留默认参数、PE、透明处理与回执；通用入口按用户 prompt/已登记参数生成。 |
-| 部署工具 | 同一绑定生成 Worker 配置与 Schema，完成探活、资源组核对和实例登记；不猜测拓扑、不自动扩大容量、不替换运行中的 Worker。 |
+| ModelHub | protobuf 不变；图片 Generate、视频 Submit/Get 不变。图像适配器从 Gateway 读取协议，把 text/traits 展开成 garment_name、garment_role、bbox、parse_labels、prompt、gender 等规范字段。 |
+| Gateway 业务入口 | 兼容生产 ModelHub 的旧图片信封和新字段；四种业务图片协议先规范化，再按数据库 Schema 校验。禁止混合新旧字段；相同 UUID、相同业务输入仍返回同一任务。 |
+| Gateway 通用入口 | Images generations/edits 与 videos 共用 Schema、请求账本、幂等、资源组和存储；通用模型必须显式登记能力，不能借用业务模型键。 |
+| 现有视觉/对话/决策 | 保留原固定入口、鉴权、上传限制、实例调度与追踪。ModelHub 本批保留现有视觉适配器和配置，包括国内 human-parser 直连。 |
+| 模型服务 | 保留真实图片/运行能力校验及业务默认值。在线 PE 失败仍可回退生成；“必须 PE applied”只作为修复验收要求。 |
 
-通用接口使用新 model_key / instance_id，资源组仍绑定实际同一物理卡。`input_schema` 属于模型，副本继承定义，显式冲突拒绝。Qwen/FLUX 首轮 n=1，seed 为 [0, 2^63)，具体参数见 Image 输出的定义。完整请求示例见 [通用 API](GENERATION_API.md) 与 README 的业务契约。
+## 合并及发布顺序
 
-不在本轮新增：租户请求隔离、独立风控服务、模型版本注册中心、自动滚动发布控制器、ModelHub 图片跨调用幂等、VMind-Video 通用 Worker。现有 request_read 凭据权限继续保留，不能对外宣称已经按调用方隔离。
+1. 固定两个新候选的提交和镜像 digest。feature PR 不触发 dev 自动发布；本批不要直接合并原 Hub 全量视觉整合草稿。
+2. 完成现有生产 Hub 基线验收及候选的跨仓库测试。真实生产配置结构必须兼容；使用既有运行时身份读取生产 S3，不能以本地假存储代替。
+3. 备份配置和镜像，按既有排空规则核实在途任务。执行 `deploy/migrations/model-input-schema.sql`，只补列和首次回填，保留自定义 Schema；检查所有已登记模型均有定义。不要用集成测试命令操作生产库。
+4. 发布 Gateway。旧 Hub 的图片信封、旧视觉/对话入口继续工作。先通过现有业务链路再进入下一步；不同时增加通用模型流量。
+5. 发布生成专用 ModelHub。沿用现有 AppConfig 和视觉连接配置，无需为本批删除直连字段或迁移国内解析。核对四种业务图片与业务视频返回，并确认 PE applied 路径。
+6. 全部 Gateway 副本稳定后，才按实际已驻留 Worker 能力登记通用模型。使用 Image 既有 render/register 工具生成 Schema 和绑定，同一物理 GPU 共享同一资源组。不得仅改协议标签或虚构可用的模型。若需要替换 Worker，先排空该卡所有关联实例并单卡验收；不因发布 Gateway/Hub 自动替换 Qwen/Video。
+7. 业务与通用各跑对应验收，记录请求、模型、实例、镜像和输出。非法参数不得入账；重放不得重复推理；共享 GPU 不超占。
 
-## 合并和发布顺序
+## 验证
 
-1. **固定候选版本并审核差异。** Gateway 的统一入口和通用分支应作为一个整合候选，Image 同理；Hub 基于 #30 增补联调测试；Video 基于 #5 补齐下载验收。不得分别部署互相覆盖的 Gateway 分支。Gateway/Hub 的 dev push 会触发发布，先保持在 feature/draft PR 上审查。
-2. **准备目标环境。** 核对实际 Gateway 地址、凭据引用、网络白名单、S3/OSS、PG/RabbitMQ、GPU 资源组和持久状态目录。保留当前配置、镜像 digest 和实例清单。Schema 变更或队列升级遵守现有排空规则，禁止拿测试脚本操作生产库。
-3. **升级 Gateway。** 按 `deploy/migrations/model-input-schema.sql` 完成 Schema 字段和原业务种子回填，检查缺定义模型；先升级全部 Gateway/Worker，再登记通用模型。该脚本不会回填 image_generation/video_generation，历史通用模型缺定义须从实际部署绑定生成并用管理接口补齐。无需新增其他数据库字段或第二套队列。
-4. **部署 Image 候选。** 从已审查源码构建固定制品，保留原业务键和持久幂等目录。同一 GPU 的业务/通用实例必须全部纳入该物理卡资源组。调整同卡驻留 Worker 前，排空该卡所有相关实例并确认无在途任务，不能只排空一个模型别名。先单卡验证再扩展。
-5. **登记和核对目录。** 使用 Image `render.py --model-definitions` 生成定义，再以 `register.py ensure --model-definitions` 登记新通用模型；核对 `/v1/models/{model_key}`、模型专属 health_url、resource_group 和实际 artifact。Schema default 不会改写请求。变更绑定/能力须同步更新定义，不能让旧新能力在同一键下混跑。
-6. **切换 ModelHub。** 同环境 Gateway 已就绪后，先更新 #30 要求的 `vision_gateway` 等配置，再发布 Hub。连接资源变化按既有规则滚动重启。ModelHub 业务图像仍 Generate，业务视频仍 Submit/Get；产品/算法直接使用通用 Gateway，本轮不改 protobuf。
-7. **执行 GPU 验收。** 业务体模、双图试衣、原业务视频完整下载各一例；通用 Qwen/FLUX 按实际绑定各一例，核对 prompt、参考图顺序、权重与回执。非法参数不得入账；同 UUID 重放不得重复推理；业务/通用同卡并发不得超过容量。记录 request_id、instance_id、artifact_digest 和结果。视频工具保留 motion_tips 和稳定 UUID，下载为空、截断、失败或超时返回非零并不覆盖已有成品。
+2026-11-17：本候选已通过 `go test -race ./...`（独立 PostgreSQL/RabbitMQ）、`scripts/ci/test-generic-contracts.sh`（真实 Python 路由/Schema 和 Hub 适配器，CPU 推理替身）、`go vet ./...` 与 `go mod verify`。生产 Hub 验收仍受上述网络入口限制。
 
-2026-11-17 已按授权在 aws-g7e 排空 GPU 2 的四个图像实例、GPU 1 的视频实例，完成隔离候选的真实生成并恢复原服务。BodyModel 使用 `originalfine-20261113`；业务/通用、multipart、RGBA、幂等、非法参数不入账和共享容量通过。随后修复服装 PE 配置/请求边界并补齐商品图、拆衣、明确衣物位置试衣各两次增强成功验收；发布时需同步部署版本化提示词配置与镜像。详细版本、证据以及生产存储/迁移等未覆盖项见 [GPU 验收记录](GPU_ACCEPTANCE_20261117.md)。该验收未升级生产 Gateway，也未覆盖远端工作区。正式发布继续遵循上述顺序。
-
-## 可复现测试
-
-正式 Dockerfile 的六个候选制品已发布 ECR，完整 Hub 图片/视频与通用生成已在隔离存储下通过，详见 [正式构建验收](GPU_ACCEPTANCE_20261117.md#正式构建与-modelhub-链路验收2026-11-17)。正式发布仍需先消除真实 AppConfig 的视觉直连字段并完成国内 `human-parser` 接入；随后通过生产存储、生产运行身份和完整配置验证。不得把“镜像已推送”当成“生产已验证”。
-
-国内解析的现有目标是 L20-1 `https://human-parser.model.wgdl.tech/human_parser`，模型键保留 `human-parser`。该域名后是 GPU 2/3 两个副本，经 Caddy → Kubernetes Service 负载均衡；当前 G6 定向派发协议不能直接登记该 HTTPS 目标。后续需增加原生视觉执行支持，使用可明确定位副本的入口与健康检查，或定义真正由后端管理容量的池协议；不可把聚合入口伪装成某张卡的单实例。ModelHub 只保留 `vision_gateway` 引用，原生地址、鉴权和路由属于 Gateway。
+新增兼容测试覆盖旧固定入口实际派发、追踪与重复提交保护，以及四种旧图片信封与规范 JSON 使用同 UUID 重放同一任务。ModelHub 保留原视觉配置和媒体传输测试，并验证规范字段映射与动态模型键。历史隔离 GPU/正式镜像验收见 `GPU_ACCEPTANCE_20261117.md`，不代表本批新候选已经部署生产。
 
 常规 Gateway 测试使用独立 `_test` PostgreSQL 和 RabbitMQ：
 
@@ -55,6 +54,4 @@ Image 另外运行 `run_business_api_cpu.py`、Qwen `test_server.py` / `test_gen
 
 ## 回退
 
-先停止新通用调用并排空相关实例，保留幂等目录和历史任务执行归属。未知结果任务仍查询原实例，不为回退强行释放 GPU 槽。删除/清理实例必须满足现有未就绪且无占槽规则。
-
-Gateway 回退版本若不认识通用协议，必须先处理完所有通用任务；保留 input_schema 数据，不执行破坏性删列。Hub 回退应与配置版本一起恢复，不能让旧二进制读取已删除的直连配置。Worker 使用固定旧制品与对应绑定恢复，再探活并恢复接单。
+Hub 回退只需恢复上一镜像，因为本批未改视觉配置结构。旧 Hub 和新 Hub 都能通过本批 Gateway 的兼容入口调用。Gateway 回退前，先停止通用入口新增调用、排空所有新通用任务并核实未知执行归属；旧 Gateway 不认识通用协议。保留 input_schema 列及数据，不作破坏性回退。PE 调用修复与这两项升级独立，正常回退 Gateway/Hub 不需要回退已上线 FLUX 镜像。
