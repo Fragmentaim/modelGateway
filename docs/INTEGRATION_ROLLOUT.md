@@ -52,6 +52,8 @@ go mod verify
 
 Image 另外运行 `run_business_api_cpu.py`、Qwen `test_server.py` / `test_generic_api.py`、共享入口路由、`deploy/unified/test*.py`、`deploy/model_gateway/test*.py`。Video 运行 `python -m unittest discover -s deploy -p test_accept_model_gateway.py`。Hub 运行配置及 vmindgateway/vworldimage/ltx/factory/modelhub service 的 race 测试。
 
+正式 Linux 候选已构建并推送美东 ECR，两个镜像的源提交、digest 和注册表复核结果见 [候选制品证据](evidence/generation-release-20261117.json)。Hub 正式 Dockerfile 的完整测试通过，包括本机 macOS 曾失败的示例脚本退出测试。
+
 ## 回退
 
 Hub 回退只需恢复上一镜像，因为本批未改视觉配置结构。旧 Hub 和新 Hub 都能通过本批 Gateway 的兼容入口调用。Gateway 回退前，先停止通用入口新增调用、排空所有新通用任务并核实未知执行归属；旧 Gateway 不认识通用协议。保留 input_schema 列及数据，不作破坏性回退。PE 调用修复与这两项升级独立，正常回退 Gateway/Hub 不需要回退已上线 FLUX 镜像。
