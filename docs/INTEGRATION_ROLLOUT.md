@@ -27,7 +27,7 @@
 6. **切换 ModelHub。** 同环境 Gateway 已就绪后，先更新 #30 要求的 `vision_gateway` 等配置，再发布 Hub。连接资源变化按既有规则滚动重启。ModelHub 业务图像仍 Generate，业务视频仍 Submit/Get；产品/算法直接使用通用 Gateway，本轮不改 protobuf。
 7. **执行 GPU 验收。** 业务体模、双图试衣、原业务视频完整下载各一例；通用 Qwen/FLUX 按实际绑定各一例，核对 prompt、参考图顺序、权重与回执。非法参数不得入账；同 UUID 重放不得重复推理；业务/通用同卡并发不得超过容量。记录 request_id、instance_id、artifact_digest 和结果。视频工具保留 motion_tips 和稳定 UUID，下载为空、截断、失败或超时返回非零并不覆盖已有成品。
 
-截至本轮开发验收，aws-g7e 四卡已有驻留服务且远端源码含未提交修改，尚未执行候选容器替换或实际生成。CPU/跨仓库测试不能替代上述 GPU 验收；需先安排可排空的卡或独立测试卡。不要覆盖远端工作区来部署候选。
+2026-11-17 已按授权在 aws-g7e 排空 GPU 2 的四个图像实例、GPU 1 的视频实例，完成隔离候选的真实生成并恢复原服务。BodyModel 使用 `originalfine-20261113`；业务/通用、multipart、RGBA、幂等、非法参数不入账和共享容量通过。详细版本、证据以及 PE 回退、生产存储/迁移等未覆盖项见 [GPU 验收记录](GPU_ACCEPTANCE_20261117.md)。该验收未升级生产 Gateway，也未覆盖远端工作区。正式发布继续遵循上述顺序。
 
 ## 可复现测试
 
