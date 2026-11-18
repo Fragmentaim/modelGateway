@@ -33,11 +33,12 @@ type objectReader interface {
 }
 
 type Server struct {
-	store   *store.Store
-	runtime *config.Runtime
-	uploads chan struct{}
-	direct  *http.Client
-	probe   func(context.Context, *config.Snapshot, protocol.InstanceTarget) (protocol.InstanceHealth, error)
+	deployments deploymentStore
+	store       *store.Store
+	runtime     *config.Runtime
+	uploads     chan struct{}
+	direct      *http.Client
+	probe       func(context.Context, *config.Snapshot, protocol.InstanceTarget) (protocol.InstanceHealth, error)
 
 	objectsOnce sync.Once
 	objects     objectReader
@@ -92,6 +93,14 @@ func (s *Server) HTTPServer(listener net.Listener) *server.Hertz {
 	h.POST("/v1/resource-groups", s.auth("admin", s.createResourceGroup))
 	h.PATCH("/v1/resource-groups", s.auth("admin", s.updateResourceGroup))
 	h.PATCH("/v1/resource-groups/machine", s.auth("admin", s.renameResourceGroupMachine))
+	h.GET("/v1/admin/deployments-ready", s.deploymentHandler(s.deploymentReady))
+	h.GET("/v1/admin/deployments/:id", s.deploymentHandler(s.getDeployment))
+	h.POST("/v1/admin/deployment-tasks", s.deploymentHandler(s.submitDeployment))
+	h.GET("/v1/admin/deployment-tasks/:id", s.deploymentHandler(s.deploymentTask))
+	h.POST("/v1/admin/deployment-tasks/:id/claim", s.deploymentHandler(s.claimDeployment))
+	h.POST("/v1/admin/deployment-tasks/:id/heartbeat", s.deploymentHandler(s.deploymentHeartbeat))
+	h.POST("/v1/admin/deployment-tasks/:id/events", s.deploymentHandler(s.deploymentEvent))
+	h.POST("/v1/admin/deployment-tasks/:id/finish", s.deploymentHandler(s.finishDeployment))
 	h.GET("/v1/admin/api-tokens", s.auth("admin", s.apiTokens))
 	h.POST("/v1/admin/api-tokens", s.auth("admin", s.apiTokens))
 	h.GET("/v1/admin/api-tokens/:id", s.auth("admin", s.apiToken))

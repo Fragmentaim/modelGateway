@@ -14,6 +14,7 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/wgdl666/modelGateway/internal/config"
+	"github.com/wgdl666/modelGateway/internal/deployment"
 	"github.com/wgdl666/modelGateway/internal/httpapi"
 	"github.com/wgdl666/modelGateway/internal/store"
 	"github.com/wgdl666/modelGateway/internal/telemetry"
@@ -75,6 +76,20 @@ func run(ctx context.Context, path string) (runErr error) {
 		return err
 	}
 	app := httpapi.New(ledger, runtime, reconciler.ProbeInstance)
+	deployments, err := deployment.Open(cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer deployments.Close()
+	app.SetDeployments(deployments)
+	if cfg.DeploymentsEnabled {
+		checkCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		err = deployments.Ready(checkCtx)
+		cancel()
+		if err != nil {
+			return errors.New("apply model deployment migration and runtime grants before enabling deployment management")
+		}
+	}
 	// 先排空 HTTP，再等后台写入完成，最后关闭两者共享的 PG 连接。
 	defer reconciler.Close()
 	stage = "listener"

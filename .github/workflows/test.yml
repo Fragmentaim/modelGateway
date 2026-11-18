@@ -45,6 +45,17 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install Pillow==12.3.0
+      - run: python -m unittest discover -s deploy/model_deploy -p 'test*.py'
+      - run: go test -race ./internal/deployment -count=1
+        env:
+          TEST_DEPLOY_DATABASE_URL: postgresql://postgres:local-test-only@127.0.0.1:5432/model_gateway_test
+      - run: go test -race ./internal/httpapi -run TestDeploymentAPI -count=1
+        env:
+          TEST_DEPLOY_HTTP_DATABASE_URL: postgresql://postgres:local-test-only@127.0.0.1:5432/model_gateway_test
       - run: go test -race ./... -count=1
       - run: go vet ./...
       - run: docker build -t model-gateway:test .

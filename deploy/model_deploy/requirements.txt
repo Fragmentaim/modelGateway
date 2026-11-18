@@ -1,0 +1,2 @@
+# Core executor uses the Python standard library.
+# Install the selected model repository output-validator dependencies separately.
