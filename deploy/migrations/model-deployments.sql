@@ -1,50 +1,55 @@
-CREATE SCHEMA IF NOT EXISTS model_deploy;
+-- Keep deployment management disabled throughout this migration and code rollout.
+-- Run as the existing database migration owner, with stop-on-error enabled.
+BEGIN;
+SELECT pg_advisory_xact_lock(72104982061118);
 
--- This PR has not been deployed. Reject its earlier draft schema instead of silently reinterpreting data.
-DO $$ BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='model_deploy'
-               AND table_name='deployments' AND column_name='release_sha256') THEN
-        RAISE EXCEPTION 'earlier draft schema detected; export records and migrate explicitly before using this schema';
-    END IF;
+-- The initial five-table layout has not served a GPU deployment in this rollout.
+-- Remove it ONLY when all tables are empty. Never discard or reinterpret history.
+DO $$
+DECLARE item record; populated boolean;
+BEGIN
+    FOR item IN SELECT tablename FROM pg_tables WHERE schemaname='model_deploy' LOOP
+        IF item.tablename NOT IN ('versions','deployments','tasks','events','operation_locks') THEN
+            RAISE EXCEPTION 'unexpected legacy table model_deploy.%; preserve schema and inspect before migration', item.tablename;
+        END IF;
+        EXECUTE format('SELECT EXISTS(SELECT 1 FROM model_deploy.%I)', item.tablename) INTO populated;
+        IF populated THEN
+            RAISE EXCEPTION 'legacy table model_deploy.% contains data; preserve it and migrate records explicitly before enabling deployment management', item.tablename;
+        END IF;
+    END LOOP;
 END $$;
+-- No CASCADE: unexpected dependencies abort the transaction as well.
+DROP TABLE IF EXISTS model_deploy.operation_locks;
+DROP TABLE IF EXISTS model_deploy.events;
+DROP TABLE IF EXISTS model_deploy.tasks;
+DROP TABLE IF EXISTS model_deploy.deployments;
+DROP TABLE IF EXISTS model_deploy.versions;
+DROP FUNCTION IF EXISTS model_deploy.reject_definition_change();
+DROP SCHEMA IF EXISTS model_deploy;
 
-CREATE TABLE IF NOT EXISTS model_deploy.versions (
-    sha256 text PRIMARY KEY CHECK (sha256 ~ '^[0-9a-f]{64}$'),
-    definition jsonb NOT NULL,
-    created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS model_deploy.deployments (
+CREATE SCHEMA IF NOT EXISTS model_gateway;
+CREATE TABLE IF NOT EXISTS model_gateway.model_deployments (
     id text PRIMARY KEY,
     manifest_sha256 text NOT NULL,
-    version_sha256 text NOT NULL REFERENCES model_deploy.versions(sha256),
+    version_sha256 text NOT NULL CHECK (version_sha256 ~ '^[0-9a-f]{64}$'),
     model_key text NOT NULL,
     machine_id text NOT NULL,
     gpu_device integer NOT NULL,
     gpu_uuid text NOT NULL,
+    -- Complete immutable version definition is already inside manifest.version.
     manifest jsonb NOT NULL,
     compose_source text NOT NULL,
-    predecessor_id text REFERENCES model_deploy.deployments(id),
+    predecessor_id text REFERENCES model_gateway.model_deployments(id),
     phase text NOT NULL DEFAULT 'planned',
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );
--- Candidate records may coexist with their predecessor; only one current version may be active.
-CREATE UNIQUE INDEX IF NOT EXISTS one_active_model ON model_deploy.deployments(model_key) WHERE phase='active';
-CREATE UNIQUE INDEX IF NOT EXISTS one_active_gpu ON model_deploy.deployments(gpu_uuid) WHERE phase='active';
-CREATE TABLE IF NOT EXISTS model_deploy.events (
-    sequence bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    deployment_id text NOT NULL REFERENCES model_deploy.deployments(id),
-    phase text NOT NULL,
-    summary jsonb NOT NULL,
-    created_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS deployment_events ON model_deploy.events(deployment_id, sequence);
+CREATE UNIQUE INDEX IF NOT EXISTS model_deployments_one_active_model ON model_gateway.model_deployments(model_key) WHERE phase='active';
+CREATE UNIQUE INDEX IF NOT EXISTS model_deployments_one_active_gpu ON model_gateway.model_deployments(gpu_uuid) WHERE phase='active';
+CREATE INDEX IF NOT EXISTS model_deployments_predecessor ON model_gateway.model_deployments(predecessor_id);
 
-CREATE OR REPLACE FUNCTION model_deploy.reject_definition_change() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION model_gateway.reject_model_deployment_definition_change() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
-    IF TG_TABLE_NAME = 'versions' THEN
-        RAISE EXCEPTION 'model versions are immutable';
-    END IF;
     IF (to_jsonb(NEW) - 'phase' - 'updated_at') IS DISTINCT FROM
        (to_jsonb(OLD) - 'phase' - 'updated_at') THEN
         RAISE EXCEPTION 'deployment definitions are immutable';
@@ -52,32 +57,28 @@ BEGIN
     RETURN NEW;
 END;
 $$;
-CREATE OR REPLACE TRIGGER immutable_version BEFORE UPDATE ON model_deploy.versions
-    FOR EACH ROW EXECUTE FUNCTION model_deploy.reject_definition_change();
-CREATE OR REPLACE TRIGGER immutable_deployment BEFORE UPDATE ON model_deploy.deployments
-    FOR EACH ROW EXECUTE FUNCTION model_deploy.reject_definition_change();
+CREATE OR REPLACE TRIGGER immutable_model_deployment BEFORE UPDATE ON model_gateway.model_deployments
+    FOR EACH ROW EXECUTE FUNCTION model_gateway.reject_model_deployment_definition_change();
 
--- Durable operation ownership survives API/runner restarts. No timed-out job is requeued automatically.
-CREATE TABLE IF NOT EXISTS model_deploy.tasks (
- id text PRIMARY KEY,
- deployment_id text NOT NULL REFERENCES model_deploy.deployments(id),
- action text NOT NULL CHECK(action IN ('deploy','switch-lora','rollback','stop','adopt')),
- execution_action text NOT NULL,
- activate boolean NOT NULL DEFAULT false,
- status text NOT NULL DEFAULT 'queued' CHECK(status IN ('queued','running','succeeded','failed','recovery_required')),
- machine_id text NOT NULL,
- hostname text NOT NULL,
- claim_token text,
- attempt integer NOT NULL DEFAULT 0,
- heartbeat_at timestamptz,
- result jsonb NOT NULL DEFAULT '{}',
- created_at timestamptz NOT NULL DEFAULT now(),
- updated_at timestamptz NOT NULL DEFAULT now()
+CREATE TABLE IF NOT EXISTS model_gateway.model_deployment_tasks (
+    id text PRIMARY KEY,
+    deployment_id text NOT NULL REFERENCES model_gateway.model_deployments(id),
+    action text NOT NULL CHECK(action IN ('deploy','switch-lora','rollback','stop','adopt')),
+    execution_action text NOT NULL,
+    activate boolean NOT NULL DEFAULT false,
+    status text NOT NULL DEFAULT 'queued' CHECK(status IN ('queued','running','succeeded','failed','recovery_required')),
+    machine_id text NOT NULL,
+    hostname text NOT NULL,
+    claim_token text,
+    attempt integer NOT NULL DEFAULT 0,
+    heartbeat_at timestamptz,
+    result jsonb NOT NULL DEFAULT '{}',
+    events jsonb NOT NULL DEFAULT '[]' CHECK(jsonb_typeof(events)='array'),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE TABLE IF NOT EXISTS model_deploy.operation_locks (
- resource_key text PRIMARY KEY,
- task_id text NOT NULL REFERENCES model_deploy.tasks(id)
-);
-ALTER TABLE model_deploy.events ADD COLUMN IF NOT EXISTS task_id text REFERENCES model_deploy.tasks(id);
-ALTER TABLE model_deploy.events ADD COLUMN IF NOT EXISTS event_id text;
-CREATE UNIQUE INDEX IF NOT EXISTS deployment_event_idempotency ON model_deploy.events(task_id,event_id) WHERE event_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS model_deployment_tasks_history ON model_gateway.model_deployment_tasks(deployment_id,created_at);
+-- Unfinished tasks retain model/GPU ownership across restarts; no lease expiry.
+CREATE INDEX IF NOT EXISTS model_deployment_tasks_unfinished ON model_gateway.model_deployment_tasks(deployment_id)
+    WHERE status IN ('queued','running','recovery_required');
+COMMIT;

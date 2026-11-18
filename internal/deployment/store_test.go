@@ -36,7 +36,7 @@ func setup(t *testing.T) *Store {
 		t.Fatal(e)
 	}
 	t.Cleanup(func() { s.Close() })
-	if _, e = s.db.ExecContext(t.Context(), `DROP SCHEMA IF EXISTS model_deploy CASCADE`); e != nil {
+	if _, e = s.db.ExecContext(t.Context(), `DROP SCHEMA IF EXISTS model_deploy CASCADE; DROP TABLE IF EXISTS model_gateway.model_deployment_tasks, model_gateway.model_deployments CASCADE`); e != nil {
 		t.Fatal(e)
 	}
 	raw, e := os.ReadFile("../../deploy/migrations/model-deployments.sql")
@@ -163,7 +163,7 @@ func TestClaimFencingAndNoAutomaticRequeue(t *testing.T) {
 		t.Fatal(e)
 	}
 	a := claim(t, s, "job-a")
-	s.db.Exec(`UPDATE model_deploy.tasks SET heartbeat_at=now()-interval '1 day'`)
+	s.db.Exec(`UPDATE model_gateway.model_deployment_tasks SET heartbeat_at=now()-interval '1 day'`)
 	if _, e := s.Claim(t.Context(), a.ID, "i-test", "gpu-host", false); !errors.Is(e, ErrConflict) {
 		t.Fatal("stale claim auto retried", e)
 	}
@@ -233,6 +233,9 @@ func TestSuccessfulSwitchAndRollbackKeepHistory(t *testing.T) {
 	if a.Phase != "active" || next.Phase != "rolled_back" || next.PredecessorID != "a" {
 		t.Fatal(a, next)
 	}
+	if len(a.Events) != 4 || a.Events[2].Phase != "stopped" || a.Events[3].Phase != "active" || a.Events[3].CreatedAt == nil {
+		t.Fatal("predecessor history lost cross-task events or server timestamps", a.Events)
+	}
 }
 func TestUnknownExecutionRetainsLocksUntilRecovery(t *testing.T) {
 	s := setup(t)
@@ -263,10 +266,10 @@ func TestUnknownExecutionRetainsLocksUntilRecovery(t *testing.T) {
 func TestDefinitionsCannotBeOverwritten(t *testing.T) {
 	s := setup(t)
 	submit(t, s, "job-a", "a", "deploy", "")
-	if _, e := s.db.Exec(`UPDATE model_deploy.deployments SET manifest='{}' WHERE id='a'`); e == nil {
+	if _, e := s.db.Exec(`UPDATE model_gateway.model_deployments SET manifest='{}' WHERE id='a'`); e == nil {
 		t.Fatal("mutable definition")
 	}
-	if _, e := s.db.Exec(`UPDATE model_deploy.versions SET definition='{}'`); e == nil {
+	if _, e := s.db.Exec(`UPDATE model_gateway.model_deployments SET version_sha256='changed'`); e == nil {
 		t.Fatal("mutable version")
 	}
 	d := fixture("a")
@@ -288,12 +291,10 @@ func TestActivationRequiresAcceptanceProof(t *testing.T) {
 func TestDocumentedRuntimeGrants(t *testing.T) {
 	owner := setup(t)
 	_, err := owner.db.Exec(`DO $$ BEGIN IF NOT EXISTS(SELECT FROM pg_roles WHERE rolname='model_deploy_test_runtime') THEN CREATE ROLE model_deploy_test_runtime; END IF; END $$;
- GRANT USAGE ON SCHEMA model_deploy TO model_deploy_test_runtime;
- GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA model_deploy TO model_deploy_test_runtime;
- GRANT UPDATE(phase,updated_at) ON model_deploy.deployments TO model_deploy_test_runtime;
- GRANT UPDATE(execution_action,status,claim_token,attempt,heartbeat_at,result,updated_at) ON model_deploy.tasks TO model_deploy_test_runtime;
- GRANT DELETE ON model_deploy.operation_locks TO model_deploy_test_runtime;
- GRANT USAGE ON ALL SEQUENCES IN SCHEMA model_deploy TO model_deploy_test_runtime;`)
+ GRANT USAGE ON SCHEMA model_gateway TO model_deploy_test_runtime;
+ GRANT SELECT, INSERT ON model_gateway.model_deployments, model_gateway.model_deployment_tasks TO model_deploy_test_runtime;
+ GRANT UPDATE(phase,updated_at) ON model_gateway.model_deployments TO model_deploy_test_runtime;
+ GRANT UPDATE(execution_action,status,claim_token,attempt,heartbeat_at,result,events,updated_at) ON model_gateway.model_deployment_tasks TO model_deploy_test_runtime;`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,10 +309,10 @@ func TestDocumentedRuntimeGrants(t *testing.T) {
 		t.Fatal(err)
 	}
 	active(t, s)
-	if _, err = s.db.Exec(`DELETE FROM model_deploy.deployments`); err == nil {
+	if _, err = s.db.Exec(`DELETE FROM model_gateway.model_deployments`); err == nil {
 		t.Fatal("runtime can delete history")
 	}
-	if _, err = s.db.Exec(`UPDATE model_deploy.versions SET definition='{}'`); err == nil {
+	if _, err = s.db.Exec(`UPDATE model_gateway.model_deployments SET version_sha256='changed'`); err == nil {
 		t.Fatal("runtime can overwrite version")
 	}
 }
@@ -325,5 +326,133 @@ func TestStoppedCandidateAloneDoesNotProveRollback(t *testing.T) {
 	event(t, s, b, "b", "stopped")
 	if err := s.Finish(t.Context(), b.ID, b.ClaimToken, "failed", json.RawMessage(`{}`)); !errors.Is(err, ErrConflict) {
 		t.Fatal("failed switch released locks without restoring predecessor", err)
+	}
+}
+
+func TestUnfinishedTaskProtectsBothGPUsWithoutLockTable(t *testing.T) {
+	s := setup(t)
+	active(t, s)
+	change := func(d *Definition, model, gpu string) {
+		d.ManifestJSON = strings.ReplaceAll(strings.ReplaceAll(d.ManifestJSON, "stable-model", model), "GPU-physical", gpu)
+	}
+	d := fixture("b")
+	d.PredecessorID = "a"
+	change(d, "stable-model", "GPU-spare")
+	if _, err := s.Submit(t.Context(), Submit{ID: "job-b", DeploymentID: "b", Action: "switch-lora", Definition: d}); err != nil {
+		t.Fatal(err)
+	}
+	b := claim(t, s, "job-b")
+	event(t, s, b, "a", "stopped")
+	event(t, s, b, "b", "stopped")
+	if err := s.Finish(t.Context(), b.ID, b.ClaimToken, "recovery_required", json.RawMessage(`{}`)); err != nil {
+		t.Fatal(err)
+	}
+	for _, gpu := range []string{"GPU-physical", "GPU-spare"} {
+		other := fixture("other")
+		change(other, "another-model", gpu)
+		if _, err := s.Submit(t.Context(), Submit{ID: "other-job", DeploymentID: "other", Action: "deploy", Definition: other}); !errors.Is(err, ErrConflict) {
+			t.Fatal("stopped phase allowed a new operation on reserved GPU", gpu, err)
+		}
+	}
+	rb, err := s.Claim(t.Context(), b.ID, "i-test", "gpu-host", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	event(t, s, rb, "b", "rollback_restoring")
+	event(t, s, rb, "a", "active")
+	event(t, s, rb, "b", "rolled_back")
+	if err = s.Finish(t.Context(), rb.ID, rb.ClaimToken, "succeeded", json.RawMessage(`{}`)); err != nil {
+		t.Fatal(err)
+	}
+	other := fixture("other")
+	change(other, "another-model", "GPU-spare")
+	if _, err = s.Submit(t.Context(), Submit{ID: "other-job", DeploymentID: "other", Action: "deploy", Definition: other}); err != nil {
+		t.Fatal("terminal task did not release spare GPU", err)
+	}
+}
+
+func TestConcurrentEventAppendKeepsReceipts(t *testing.T) {
+	s := setup(t)
+	submit(t, s, "job-a", "a", "deploy", "")
+	a := claim(t, s, "job-a")
+	var wg sync.WaitGroup
+	results := make(chan error, 8)
+	for _, id := range []string{"one", "two", "three", "four", "five", "six", "seven", "eight"} {
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			results <- s.Event(context.Background(), a.ID, a.ClaimToken, Event{ID: id, DeploymentID: "a", Phase: "started"})
+		}(id)
+	}
+	wg.Wait()
+	close(results)
+	for err := range results {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	r, err := s.Get(t.Context(), "a")
+	if err != nil || len(r.Events) != 8 {
+		t.Fatal("concurrent append lost receipts", len(r.Events), err)
+	}
+}
+
+func TestMigrationKeepsOnlyTwoTablesAndPreservesExistingGateway(t *testing.T) {
+	s := setup(t)
+	legacy, err := os.ReadFile("testdata/legacy-model-deployments.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.db.Exec(string(legacy)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.db.Exec(`CREATE TABLE model_gateway.migration_sentinel(id int PRIMARY KEY); INSERT INTO model_gateway.migration_sentinel VALUES(1)`); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { s.db.Exec(`DROP TABLE IF EXISTS model_gateway.migration_sentinel`) })
+	migration, _ := os.ReadFile("../../deploy/migrations/model-deployments.sql")
+	for attempt := range 2 {
+		if _, err = s.db.Exec(string(migration)); err != nil {
+			t.Fatal(err)
+		}
+		if attempt == 0 {
+			active(t, s)
+		}
+	}
+	recorded, err := s.Get(t.Context(), "a")
+	if err != nil || recorded.Phase != "active" || len(recorded.Events) != 2 {
+		t.Fatal("repeat migration changed new deployment history", recorded, err)
+	}
+	var oldSchema, tables, sentinel int
+	s.db.QueryRow(`SELECT count(*) FROM pg_namespace WHERE nspname='model_deploy'`).Scan(&oldSchema)
+	s.db.QueryRow(`SELECT count(*) FROM pg_tables WHERE schemaname='model_gateway' AND tablename IN ('model_deployments','model_deployment_tasks')`).Scan(&tables)
+	s.db.QueryRow(`SELECT count(*) FROM model_gateway.migration_sentinel`).Scan(&sentinel)
+	if oldSchema != 0 || tables != 2 || sentinel != 1 {
+		t.Fatal(oldSchema, tables, sentinel)
+	}
+}
+
+func TestMigrationRefusesNonemptyLegacyTables(t *testing.T) {
+	s := setup(t)
+	legacy, _ := os.ReadFile("testdata/legacy-model-deployments.sql")
+	if _, err := s.db.Exec(string(legacy)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`INSERT INTO model_deploy.versions(sha256,definition) VALUES($1,'{"retained":true}')`, strings.Repeat("a", 64)); err != nil {
+		t.Fatal(err)
+	}
+	migration, _ := os.ReadFile("../../deploy/migrations/model-deployments.sql")
+	conn, err := s.db.Conn(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if _, err = conn.ExecContext(t.Context(), string(migration)); err == nil || !strings.Contains(err.Error(), "contains data") {
+		t.Fatal("migration did not stop on legacy data", err)
+	}
+	conn.ExecContext(t.Context(), `ROLLBACK`)
+	var count int
+	if err = conn.QueryRowContext(t.Context(), `SELECT count(*) FROM model_deploy.versions WHERE definition->>'retained'='true'`).Scan(&count); err != nil || count != 1 {
+		t.Fatal("legacy history was lost", count, err)
 	}
 }

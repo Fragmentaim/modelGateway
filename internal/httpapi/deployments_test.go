@@ -58,7 +58,7 @@ func TestDeploymentAPIWithPostgres(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer conn.Close(context.Background())
-	if _, e = conn.Exec(t.Context(), `DROP SCHEMA IF EXISTS model_deploy CASCADE`); e != nil {
+	if _, e = conn.Exec(t.Context(), `DROP SCHEMA IF EXISTS model_deploy CASCADE; DROP TABLE IF EXISTS model_gateway.model_deployment_tasks, model_gateway.model_deployments CASCADE`); e != nil {
 		t.Fatal(e)
 	}
 	raw, e := os.ReadFile("../../deploy/migrations/model-deployments.sql")
