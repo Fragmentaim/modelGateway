@@ -8,10 +8,12 @@ SELECT pg_advisory_xact_lock(72104982061118);
 DO $$
 DECLARE item record; populated boolean;
 BEGIN
-    FOR item IN SELECT tablename FROM pg_tables WHERE schemaname='model_deploy' LOOP
+    FOR item IN SELECT tablename FROM pg_tables WHERE schemaname='model_deploy' ORDER BY tablename LOOP
         IF item.tablename NOT IN ('versions','deployments','tasks','events','operation_locks') THEN
             RAISE EXCEPTION 'unexpected legacy table model_deploy.%; preserve schema and inspect before migration', item.tablename;
         END IF;
+        -- Keep the emptiness check valid until DROP, including direct DB writers.
+        EXECUTE format('LOCK TABLE model_deploy.%I IN ACCESS EXCLUSIVE MODE', item.tablename);
         EXECUTE format('SELECT EXISTS(SELECT 1 FROM model_deploy.%I)', item.tablename) INTO populated;
         IF populated THEN
             RAISE EXCEPTION 'legacy table model_deploy.% contains data; preserve it and migrate records explicitly before enabling deployment management', item.tablename;

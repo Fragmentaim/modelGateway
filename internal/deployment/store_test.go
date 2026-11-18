@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -454,5 +455,62 @@ func TestMigrationRefusesNonemptyLegacyTables(t *testing.T) {
 	var count int
 	if err = conn.QueryRowContext(t.Context(), `SELECT count(*) FROM model_deploy.versions WHERE definition->>'retained'='true'`).Scan(&count); err != nil || count != 1 {
 		t.Fatal("legacy history was lost", count, err)
+	}
+}
+
+func TestMigrationCannotDropConcurrentLegacyInsert(t *testing.T) {
+	s := setup(t)
+	legacy, _ := os.ReadFile("testdata/legacy-model-deployments.sql")
+	if _, err := s.db.Exec(string(legacy)); err != nil {
+		t.Fatal(err)
+	}
+	writer, err := s.db.BeginTx(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Rollback()
+	if _, err = writer.Exec(`INSERT INTO model_deploy.versions(sha256,definition) VALUES($1,'{"retained":true}')`, strings.Repeat("a", 64)); err != nil {
+		t.Fatal(err)
+	}
+	conn, err := s.db.Conn(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	var pid int
+	if err = conn.QueryRowContext(t.Context(), `SELECT pg_backend_pid()`).Scan(&pid); err != nil {
+		t.Fatal(err)
+	}
+	migration, _ := os.ReadFile("../../deploy/migrations/model-deployments.sql")
+	result := make(chan error, 1)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	go func() {
+		_, err := conn.ExecContext(ctx, string(migration))
+		conn.ExecContext(context.Background(), `ROLLBACK`)
+		result <- err
+	}()
+	waiting := false
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); {
+		if err = s.db.QueryRow(`SELECT coalesce(wait_event_type='Lock',false) FROM pg_stat_activity WHERE pid=$1`, pid).Scan(&waiting); err != nil {
+			t.Fatal(err)
+		}
+		if waiting {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !waiting {
+		t.Fatal("migration did not wait for the concurrent writer")
+	}
+	if err = writer.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err = <-result; err == nil || !strings.Contains(err.Error(), "contains data") {
+		t.Fatal("migration did not preserve the concurrent insert", err)
+	}
+	var count int
+	if err = s.db.QueryRow(`SELECT count(*) FROM model_deploy.versions WHERE definition->>'retained'='true'`).Scan(&count); err != nil || count != 1 {
+		t.Fatal("concurrent legacy record was lost", count, err)
 	}
 }
