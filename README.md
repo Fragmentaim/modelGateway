@@ -235,4 +235,4 @@ python -m unittest discover -s worker_adapter
 
 ## 模型部署管理
 
-统一模型部署任务、云端数据库记录及 GPU 执行器见 [部署管理指南](deploy/model_deploy/README.md)。该模块按环境显式启用，默认关闭；模型专用加载与配置仍在对应模型仓库，现有生成接口保持不变。
+模型部署只使用 `model_gateway.model_deployments` 和 `model_gateway.model_deployment_tasks` 两张表。部署任务、云端数据库记录及 GPU 执行器见 [部署管理指南](deploy/model_deploy/README.md)。该模块按环境显式启用，默认关闭；模型专用加载与配置仍在对应模型仓库，现有生成接口保持不变。
