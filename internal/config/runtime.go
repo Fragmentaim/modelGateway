@@ -20,6 +20,8 @@ import (
 )
 
 type Config struct {
+	// Deployment management is opt-in per environment; generation routes are unchanged.
+	DeploymentsEnabled bool `json:"model_deployments_enabled,omitempty"`
 	// 仅由 Secret 注入；留空时关闭独立 Token，不影响已有固定凭据。
 	TokenEncryptionKey string                 `json:"-"`
 	SubjectPools       map[string]SubjectPool `json:"subject_pools,omitempty"`

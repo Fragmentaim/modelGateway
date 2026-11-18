@@ -1,0 +1,4 @@
+local/
+records/
+*.env
+__pycache__/
