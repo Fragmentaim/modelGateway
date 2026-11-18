@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create image model deployments or switch LoRA behind a stable Gateway model_id."""
+"""Create model deployments or switch LoRA behind a stable Gateway model_id."""
 
 from __future__ import annotations
 
@@ -32,7 +32,9 @@ from register import (
     wait_until,
 )
 
+GENERIC = {"image_generation": "images", "video_generation": "videos"}
 SUPPORTED = {
+    "video_generation",
     "image_generation",
     "product_generation",
     "garment_extraction",
@@ -43,6 +45,10 @@ SHA = r"[0-9a-f]{64}"
 OPERATIONAL_ENV = {
     "MODEL_GATEWAY_MANAGED",
     "VMIND_IMAGE_MODELS",
+    "VMIND_VIDEO_MODELS",
+    "VG_DATA_DIR",
+    "VG_JOB_STATE_DIR",
+    "VG_JOB_OWNER_ID",
     "VMIND_GENERATION_STATE",
     "VMIND_WARMUP_READY_FILE",
     "WARMUP_BASE",
@@ -94,7 +100,7 @@ class Deployment:
         self.target = self.data["target"]
         self.version = self.data["version"]
         require(
-            self.version.get("engine") in {"qwen", "flux"} and isinstance(self.version.get("base_model"), str) and self.version["base_model"],
+            self.version.get("engine") in {"qwen", "flux", "ltx"} and isinstance(self.version.get("base_model"), str) and self.version["base_model"],
             "declare engine and pinned base_model",
         )
         require(
@@ -120,7 +126,7 @@ class Deployment:
         self.release_hash = fingerprint(self.version)
         self.identity = fingerprint(self.data)
         self.item = Instance.parse(self.target["instance"])
-        require(self.item.protocol in SUPPORTED, "unsupported image protocol")
+        require(self.item.protocol in SUPPORTED, "unsupported deployment protocol")
         require(
             re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", self.data["model_id"]),
             "invalid model_id",
@@ -135,11 +141,11 @@ class Deployment:
             instance_id=self.id + "-verify",
             model_key=self.validation_model_id,
         )
-        if self.item.protocol == "image_generation":
+        if self.item.protocol in GENERIC:
             for field in ("health_url", "local_health_url"):
                 value = getattr(self.item, field)
                 require(
-                    value.endswith("/v1/images/models/" + self.item.model_key + "/health"),
+                    value.endswith("/v1/" + GENERIC[self.item.protocol] + "/models/" + self.item.model_key + "/health"),
                     "generic model probe URL must name model_id",
                 )
                 setattr(
@@ -164,7 +170,7 @@ class Deployment:
             "artifact_digest must identify the complete version",
         )
         require(self.item.local_health_url, "local_health_url required")
-        if self.item.protocol == "image_generation":
+        if self.item.protocol in GENERIC:
             require(
                 isinstance(self.item.input_schema, dict),
                 "generic input_schema required",
@@ -198,8 +204,17 @@ class Deployment:
             require(type(case.get("require_pe")) is bool, "explicit require_pe required")
             require(
                 isinstance(case.get("expected_size"), list) and len(case["expected_size"]) == 2 and all(type(x) is int and x > 0 for x in case["expected_size"]),
-                "expected image dimensions required",
+                "expected output dimensions required",
             )
+        if self.item.protocol == "video_generation":
+            require(self.version["engine"] == "ltx" and self.version.get("binding") == {"model": "ltx"}, "video deployment supports the LTX worker only")
+            for case in self.release["cases"]:
+                require(type(case.get("expected_frames")) is int and case["expected_frames"] > 0, "expected video frame count required")
+                require(type(case.get("expected_fps")) in (int, float) and case["expected_fps"] > 0, "expected video frame rate required")
+                roles = {a["role"] for a in self.release["assets"]}
+                require("weights" in roles, "pin video base weights")
+                if "lora" in roles:
+                    require(re.fullmatch(SHA, case["expected_generation"].get("model_version.lora.sha256", "")), "expected video LoRA SHA required")
         self.compose_path = (self.path.parent / self.target["compose"]).resolve()
         require(
             Path(self.target["compose"]).name == self.target["compose"] and self.target["compose"] not in {"manifest.json", ".", ".."},
@@ -333,8 +348,9 @@ class Deployment:
         )
         require(len({p["published"] for p in ports}) == len(ports), "duplicate host ports")
         env = service.get("environment", {})
-        if self.item.protocol == "image_generation":
-            bindings = json.loads(env.get("VMIND_IMAGE_MODELS", "{}"))
+        if self.item.protocol in GENERIC:
+            binding_env = "VMIND_VIDEO_MODELS" if self.item.protocol == "video_generation" else "VMIND_IMAGE_MODELS"
+            bindings = json.loads(env.get(binding_env, "{}"))
             expected = {self.item.model_key} if self.target.get("adopt_existing") else {self.item.model_key, self.validation_model_id}
             require(
                 set(bindings) == expected,
@@ -344,6 +360,28 @@ class Deployment:
                 all(binding == self.version["binding"] for binding in bindings.values()),
                 "validation binding must use the same version/profile",
             )
+        if self.item.protocol == "video_generation":
+            # Single physical GPU is exposed as cuda:0. Never accept a shared production topology.
+            topology_path = env.get("VG_INSTANCES", "")
+            topology_assets = []
+            for asset in self.release["assets"]:
+                if asset["role"] != "config":
+                    continue
+                for mount in mounts:
+                    source = Path(mount["source"]).resolve()
+                    asset_path = Path(asset["path"]).resolve()
+                    if mount.get("read_only") and asset_path.is_relative_to(source):
+                        if str(Path(mount["target"]) / asset_path.relative_to(source)) == topology_path:
+                            topology_assets.append(asset)
+            require(len(topology_assets) == 1, "pin VG_INSTANCES as a read-only config asset")
+            topology = json.loads(Path(topology_assets[0]["path"]).read_text())
+            instances = topology.get("instances") or []
+            require(
+                len(instances) == 1 and instances[0].get("model") == "ltx"
+                and instances[0].get("gpus") == [0] and topology.get("gemma_gpu") is None,
+                "video deployment requires one LTX worker on container GPU 0",
+            )
+            require(not env.get("VG_DATABASE_URL"), "video deployment uses its persistent local execution ledger")
         inference = {
             key: str(value)
             for key, value in env.items()
@@ -358,7 +396,8 @@ class Deployment:
             inference == {key: str(value) for key, value in self.version["environment"].items()},
             "inference environment differs from immutable version",
         )
-        for name in ("VMIND_GENERATION_STATE", "VMIND_WARMUP_READY_FILE"):
+        state_names = ("VG_DATA_DIR", "VG_JOB_STATE_DIR") if self.item.protocol == "video_generation" else ("VMIND_GENERATION_STATE", "VMIND_WARMUP_READY_FILE")
+        for name in state_names:
             require(
                 env.get(name) and any(not m.get("read_only") and Path(env[name]).is_relative_to(m["target"]) for m in mounts),
                 name + " must use persistent deployment state",
@@ -607,10 +646,10 @@ class Runner:
         for index, case in enumerate(self.d.release["cases"]):
             request_id = self.d.request_id(index)
             payload = json.loads(self.d.case_path(case).read_text())
-            if item.protocol == "image_generation":
+            if item.protocol in GENERIC:
                 require("model" not in payload, "case contains input fields only")
                 path, body = (
-                    "/v1/images/generations",
+                    "/v1/videos" if item.protocol == "video_generation" else "/v1/images/generations",
                     {"model": item.model_key, **payload},
                 )
             else:
@@ -621,6 +660,12 @@ class Runner:
             self.audit.record("acceptance_intent", request_id=request_id)
             api.call_with_headers("POST", path, body, {"Idempotency-Key": request_id})
             detail = self.gateway.call("GET", "/v1/admin/requests/" + request_id)
+            if item.protocol == "video_generation":
+                deadline = time.monotonic() + self.timeout
+                while detail.get("state") in {"queued", "processing"}:
+                    require(time.monotonic() < deadline, "video acceptance timed out; execution remains unknown")
+                    time.sleep(min(2, max(0, deadline - time.monotonic())))
+                    detail = self.gateway.call("GET", "/v1/admin/requests/" + request_id)
             require(
                 detail.get("state") == "succeeded" and detail.get("instance_id") == item.instance_id,
                 "acceptance did not succeed on the selected instance",
@@ -637,13 +682,19 @@ class Runner:
             )
             url = self.gateway.base + "/v1/admin/requests/" + request_id + "/media?kind=output&index=0"
             request = urllib.request.Request(url, headers={"Authorization": "Bearer " + self.api_token})
-            with OPENER.open(request, timeout=60) as response:
-                raw = response.read(64 * 1024 * 1024 + 1)
-            require(len(raw) <= 64 * 1024 * 1024, "acceptance image too large")
             with tempfile.TemporaryDirectory(prefix="vmind-accept-") as directory:
                 media = Path(directory) / "output"
                 settings = Path(directory) / "case.json"
-                media.write_bytes(raw)
+                # Stream bounded artifacts; video output must not consume unbounded RAM.
+                limit = (512 if item.protocol == "video_generation" else 64) * 1024 * 1024
+                size = 0
+                output_hash = hashlib.sha256()
+                with OPENER.open(request, timeout=60) as response, media.open("wb") as stream:
+                    while chunk := response.read(1024 * 1024):
+                        size += len(chunk)
+                        require(size <= limit, "acceptance output too large")
+                        stream.write(chunk)
+                        output_hash.update(chunk)
                 settings.write_text(json.dumps(case))
                 validation = json.loads(
                     run(
@@ -666,7 +717,7 @@ class Runner:
                 "acceptance_passed",
                 request_id=request_id,
                 instance_id=item.instance_id,
-                output_sha256=hashlib.sha256(raw).hexdigest(),
+                output_sha256=output_hash.hexdigest(),
                 validation=validation,
                 weight_sha256=generation["model_version"]["sha256"],
                 pe_status=generation.get("pe_status"),
@@ -821,6 +872,19 @@ class Runner:
 
             def idle():
                 data = read_json(self.d.target["idle_url"])
+                if self.d.item.protocol == "video_generation":
+                    readiness = data.get("readiness") or {}
+                    workers = readiness.get("workers") or []
+                    instances = data.get("instances") or []
+                    return (
+                        len(workers) == len(instances) == 1
+                        and instances[0].get("gpus") == [0]
+                        and instances[0].get("model") == self.d.version["binding"].get("model")
+                        and workers[0].get("name") == instances[0].get("name")
+                        and readiness.get("admitted") == 0
+                        and data.get("queued_total") == 0
+                        and workers[0].get("busy") is False
+                    )
                 return "active_tasks" in data and "pending_tasks" in data and not data["active_tasks"] and not data["pending_tasks"] and not data.get("current_task")
 
             wait_until(

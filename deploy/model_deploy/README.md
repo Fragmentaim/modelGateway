@@ -2,7 +2,7 @@
 
 modelGateway 管理版本定义、部署任务、操作互斥和回执；GPU 主机上的独立执行器执行启停、预热、验收、切换和回退。模型加载、LoRA 兼容性、Compose 模板及输出验收插件留在模型仓库。生成请求进程不执行 Docker，也不等待模型加载。部署记录保存在云端 PostgreSQL，GPU 机器只持有制品缓存、运行状态和 Gateway 凭据，不需要数据库密码。
 
-本版先接入 VMind-Image，覆盖独立单 Worker、单 model_id、单 GPU 的新部署及同主机 LoRA 切换。新机器可以运行同一执行器；跨主机切换、多副本滚动、共享容器/共享卡联动及 VMind-Video 的专用适配不在本版。复用原卡会有停机预热时间；有空闲卡时先验候选再排空旧实例。不会自动构建镜像或因代码合并自动部署模型。
+本版接入 VMind-Image 和 VMind-Video，覆盖独立单 Worker、单 model_id、单 GPU 的新部署及同主机 LoRA 切换。新机器可以运行同一执行器；跨主机切换、多副本滚动、共享容器/共享卡联动不在本版。复用原卡会有停机预热时间；有空闲卡时先验候选再排空旧实例。不会自动构建镜像或因代码合并自动部署模型。
 
 ## 组件和事实来源
 
@@ -12,7 +12,7 @@ modelGateway 管理版本定义、部署任务、操作互斥和回执；GPU 主
 | 操作状态、领取记录、结果和执行日志 | `model_gateway.model_deployment_tasks`；日志存 `events` JSON 数组 |
 | 任务提交、领取、回执、恢复与鉴权 | Gateway 管理 HTTP API |
 | Docker/GPU 检查、候选验收、排空和切换 | 本目录 `manage.py`，在目标 GPU 主机执行 |
-| 模型加载、LoRA 描述、输出校验和部署模板 | [VMind-Image 部署配置](https://github.com/wgdl666/VMind-Image/tree/main/deploy/model_deploy)；合并前使用对应 PR 分支 |
+| 模型加载、LoRA 描述、输出校验和部署模板 | [VMind-Image 部署配置](https://github.com/wgdl666/VMind-Image/tree/main/deploy/model_deploy)；[VMind-Video 部署配置](https://github.com/wgdl666/VMind-Video/tree/main/deploy/model_deploy) |
 | 模型请求、实际执行归属和容量 | 原 `model_gateway` schema，沿用原登记/drain/生成接口 |
 | 镜像与权重 | 固定 digest 的 ECR 镜像及固定 revision/SHA256 的 HF/S3 制品 |
 
@@ -61,6 +61,18 @@ GRANT UPDATE (execution_action, status, claim_token, attempt, heartbeat_at, resu
 - 模板和代码上 Git；具体部署 manifest、Compose 和任务回执以 DB 为准。凭据使用运行时环境/文件引用，不写入 manifest、版本或 source URL。
 
 通用模型必须把 `${MODEL_ID}` 与 `${VALIDATION_MODEL_ID}` 绑定到同一 profile/能力。候选用独立验收键，先核对真实实例、权重、PE 条件和输出，再开放正式入口。原生业务模型继续使用业务协议，需要现有 native_backends 配置覆盖临时键；地址/端口遵守既有 Gateway 后端限制。注册/探活/共享资源组/drain 功能直接复用。
+
+## 视频接入边界
+
+VMind-Video 复用相同的 deploy / switch-lora / rollback / stop 动作和已有两张表，不新增管理 API 或数据库迁移。GPU 执行器增加 LTX `video_generation` 协议支持；Gateway 服务端与生成路由无需因本次接入升级。
+
+- 单独容器只暴露一张物理卡，容器拓扑必须是单 LTX、`gpus: [0]`、无共享 Gemma；VG_INSTANCES 必须作为固定 SHA 的只读 config 资产。
+- 正式键与临时验收键通过 VMIND_VIDEO_MODELS 绑定同一个 LTX Worker，健康路径为 `/gpu0/v1/videos/models/<model_id>/health`。登记的 gpu_devices 仍填写宿主机物理编号。
+- VG_DATA_DIR 与 VG_JOB_STATE_DIR 必须在独立持久挂载内，保留现有 Worker 执行账本。本轮不新增模型端 PG 数据库。
+- `POST /v1/videos` 返回 202 后轮询原请求，不重复提交。终态、实例归属、主权重及 LoRA 回执全部匹配后，流式下载原视频（上限 512 MiB），调用固定摘要的视频解码验收插件。
+- 视频验收明确 expected_size、expected_frames、expected_fps；有 LoRA 时必须校验 model_version.lora.sha256。停机还需 Worker 的单实例拓扑、admitted=0、queued_total=0、busy=false；缺少字段和未知执行不会视为空闲。
+- 视频训练 checkpoint 本轮为 LoRA，switch-lora 仍严格要求主权重不变、LoRA 改变。完整主权重变化使用独立新 model_id 部署，不放宽已有切换契约。
+- 现有双卡视频生产容器不属于单卡部署管理目标，拒绝使用其共享拓扑或状态目录。编排、同卡排空、失败恢复沿用原流程。
 
 ## 两个部署场景
 
